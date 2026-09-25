@@ -35,21 +35,33 @@ export class UnitIndex {
   catCount = new Float64Array(0);
   /** Land power by category (for composition analysis). */
   armorPower = new Float64Array(0);
-  byHex = new Map<number, Unit[]>();
-
   rebuild(state: GameState, designs: (id: string) => DesignInfo | undefined): void {
     const n = state.nations.length;
-    this.byNation = Array.from({ length: n }, () => []);
-    this.land = Array.from({ length: n }, () => []);
-    this.air = Array.from({ length: n }, () => []);
-    this.naval = Array.from({ length: n }, () => []);
-    this.landPower = new Float64Array(n);
-    this.airPower = new Float64Array(n);
-    this.navalPower = new Float64Array(n);
-    this.upkeep = new Float64Array(n);
-    this.catCount = new Float64Array(n * CATEGORY_COUNT);
-    this.armorPower = new Float64Array(n);
-    this.byHex.clear();
+    if (this.byNation.length !== n) {
+      this.byNation = Array.from({ length: n }, () => []);
+      this.land = Array.from({ length: n }, () => []);
+      this.air = Array.from({ length: n }, () => []);
+      this.naval = Array.from({ length: n }, () => []);
+      this.landPower = new Float64Array(n);
+      this.airPower = new Float64Array(n);
+      this.navalPower = new Float64Array(n);
+      this.upkeep = new Float64Array(n);
+      this.catCount = new Float64Array(n * CATEGORY_COUNT);
+      this.armorPower = new Float64Array(n);
+    } else {
+      for (let i = 0; i < n; i++) {
+        this.byNation[i].length = 0;
+        this.land[i].length = 0;
+        this.air[i].length = 0;
+        this.naval[i].length = 0;
+      }
+      this.landPower.fill(0);
+      this.airPower.fill(0);
+      this.navalPower.fill(0);
+      this.upkeep.fill(0);
+      this.catCount.fill(0);
+      this.armorPower.fill(0);
+    }
     for (const u of state.units.values()) {
       const a = u.nation;
       if (a < 0 || a >= n) continue;
@@ -70,12 +82,6 @@ export class UnitIndex {
         this.naval[a].push(u);
         this.navalPower[a] += Math.max(1, info.naval) * r;
       }
-      let list = this.byHex.get(u.hex);
-      if (!list) {
-        list = [];
-        this.byHex.set(u.hex, list);
-      }
-      list.push(u);
     }
     this.hour = state.hour;
   }
@@ -107,6 +113,7 @@ export class AIContext {
   private warCache = new Map<number, WarView[]>();
   private allyCacheHour = -1;
   private allyCache = new Map<number, number[]>();
+  private blocMembers: Map<number, number[]> | null = null;
 
   constructor(game: GameAPI) {
     this.game = game;
@@ -210,9 +217,12 @@ export class AIContext {
 
   /** Nations bound to defend `n`: alliances, defence pacts and military blocs. */
   alliesOf(n: number): number[] {
-    if (this.allyCacheHour !== this.state.hour) {
+    // Alliances change rarely: refresh daily or when the treaty list changes.
+    const key = Math.floor(this.state.hour / 24) * 100003 + this.state.treaties.length;
+    if (this.allyCacheHour !== key) {
       this.allyCache.clear();
-      this.allyCacheHour = this.state.hour;
+      this.allyCacheHour = key;
+      this.blocMembers = null;
     }
     const cached = this.allyCache.get(n);
     if (cached) return cached;
@@ -224,11 +234,20 @@ export class AIContext {
     }
     const me = this.state.nations[n];
     const blocs = this.state.world.blocs;
+    if (!this.blocMembers) {
+      this.blocMembers = new Map();
+      for (const o of this.state.nations) {
+        if (!o.alive) continue;
+        for (const b of o.blocs) {
+          let l = this.blocMembers.get(b);
+          if (!l) this.blocMembers.set(b, (l = []));
+          l.push(o.id);
+        }
+      }
+    }
     for (const b of me.blocs) {
       if (!blocs[b]?.military) continue;
-      for (const o of this.state.nations) {
-        if (o.id !== n && o.alive && o.blocs.includes(b)) out.add(o.id);
-      }
+      for (const o of this.blocMembers.get(b) ?? []) if (o !== n) out.add(o);
     }
     const list = [...out].filter((x) => this.state.nations[x]?.alive);
     this.allyCache.set(n, list);

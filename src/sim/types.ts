@@ -213,7 +213,28 @@ export interface Unit {
   kills: number;
   createdHour: number;
   groupId: number; // AI grouping (-1 none)
+  // ---- added by the simulation ----
+  /** Air units: id of the carrier unit they are based on (-1 = land airbase). */
+  carrier: number;
+  /** Stealthy unit (submarine) currently undetected by every foreign nation. UI: hide from non-owners. */
+  hidden: boolean;
+  /** Last hour this unit fired or was fired upon (-1 = never). */
+  lastCombatHour: number;
+  /** Air units: sortie phase. */
+  airState: AirState;
+  /** Air units: hours left in the current phase (rearming / on station). */
+  airTimer: number;
+  /** Hours spent waiting for a blocked path step (re-path after a while). */
+  blockedHours: number;
 }
+
+/** Air sortie phase: ready at base, flying out, over target, flying home, rearming at base. */
+export type AirState = 'ready' | 'outbound' | 'onStation' | 'returning' | 'rearming';
+
+/** Maximum number of friendly land units that may share one hex. */
+export const STACK_LIMIT = 10;
+/** Air squadrons a carrier can host. */
+export const CARRIER_CAPACITY = 4;
 
 // ---------------------------------------------------------------------------
 // Facilities
@@ -268,6 +289,13 @@ export interface Facility {
   constructionDaysLeft: number; // > 0 while under construction
   x: number; // world position for rendering
   z: number;
+  // ---- added by the simulation ----
+  /** Current owner (follows hex ownership; offshore platforms follow the nearest coast). */
+  nation: NationId;
+  /** Operating efficiency 0..1 over the last day (inputs, damage, demand). */
+  efficiency: number;
+  /** Total construction days of the current build/upgrade (for progress bars). */
+  constructionTotal: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -402,6 +430,70 @@ export interface Nation {
   // Daily finance breakdown (billions USD per day, last day)
   income: Record<string, number>;
   expenses: Record<string, number>;
+  // ---- added by the simulation ----
+  /** Unspent military budget available for unit procurement (billions USD). */
+  militaryFund: number;
+  /** National price level for military upkeep/procurement (1 = reference). */
+  costFactor: number;
+  /** Average annual interest rate paid on debt. */
+  interestRate: number;
+  /** Aggregated effects of known techs (effect key -> total). */
+  techMods: Record<string, number>;
+  /** Law & order 0..100 (police spending, approval, war). */
+  lawOrder: number;
+  /** 0..1 share of demand met per resource over the last day (indexed by Resource). */
+  satisfaction: Float64Array;
+  /** Total demand per resource per day (population + industry + military + construction). */
+  demand: Float64Array;
+  /** Owned hexes / cities / units (refreshed daily). */
+  hexCount: number;
+  cityCount: number;
+  unitCount: number;
+  /** Cached militaryPower() value (refreshed daily). */
+  power: number;
+  /** Day number of the next general election (-1 = none, non-democracies). */
+  nextElectionDay: number;
+  /** Workforce in millions. */
+  laborForce: number;
+  /** Net resource trade value over the last day (billions USD, + = surplus). */
+  tradeBalance: number;
+  /** Services, tourism & remittance net income (billions USD per year). */
+  servicesIncome: number;
+  /** Temporary approval bonus (rally round the flag), decays daily. */
+  rally: number;
+  /** Economic shock to annual growth from events (decays). */
+  growthShock: number;
+  /** Internal calibration baselines captured at game start. */
+  baseline: NationBaseline;
+  /** GDP components (billions USD / year): services & domestic demand vs. goods production value. */
+  gdpServices: number;
+  gdpGoods: number;
+  /** Upkeep price level applied to unit upkeep (calibrated so the start OOB fits the real defence budget). */
+  upkeepFactor: number;
+  /** Personnel lost in the last day (all wars). */
+  casualtiesToday: number;
+}
+
+/** Internal reference values captured at scenario start (so an idle economy stays stable). */
+export interface NationBaseline {
+  approval: number;
+  approvalOffset: number;
+  taxBurden: number;
+  social: number;
+  unemployment: number;
+  debtRatio: number;
+  creditRating: number;
+  literacy: number;
+  trendGrowth: number;
+  infrastructure: number;
+  education: number;
+  facilityJobs: number;
+  lawEnforcement: number;
+  gdp: number;
+  inflation: number;
+  lawOrder: number;
+  /** Multiplier from goods production value (at base prices) to its GDP contribution. */
+  goodsMult: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -542,6 +634,24 @@ export interface GameState {
   news: NewsItem[];
   nextId: number;
   gameOver: null | { winner: NationId; reason: string };
+  // ---- added by the simulation ----
+  /** RNG seed of this game (determinism for save/load). */
+  seed: number;
+  /** Supply level 0..100 of each hex for its current owner (see GameAPI.supplyAt). */
+  supply: Uint8Array;
+  /** Running totals for statistics screens. */
+  stats: GameStats;
+}
+
+export interface GameStats {
+  hexesCaptured: number;
+  citiesCaptured: number;
+  unitsDestroyed: number;
+  unitsBuilt: number;
+  facilitiesBuilt: number;
+  warsDeclared: number;
+  peaceTreaties: number;
+  treatiesSigned: number;
 }
 
 export function hourToDate(hour: number): Date {

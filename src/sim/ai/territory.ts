@@ -26,6 +26,14 @@ export class TerritoryIndex {
   cz: Float64Array = new Float64Array(0);
   /** Water mask (1 = water) cached from world terrain. */
   water: Uint8Array = new Uint8Array(0);
+  /**
+   * Connected component id of each owned land hex within its owner's territory
+   * (-1 = water/unowned). Two own hexes with different ids cannot be reached
+   * from each other by land without crossing foreign soil.
+   */
+  comp: Int32Array = new Int32Array(0);
+  /** Main (largest) territory component per nation. */
+  mainComp: Int32Array = new Int32Array(0);
 
   constructor(private grid: HexGrid) {}
 
@@ -101,9 +109,63 @@ export class TerritoryIndex {
       const o = owner[c.hex];
       if (o > 0 && o - 1 < n) this.cities[o - 1].push(c.id);
     }
+    this.buildComponents(owner, n);
     this.ownerVersion = state.ownerVersion;
     this.builtHour = state.hour;
     this.version++;
+  }
+
+  private ownerRef: Uint16Array | null = null;
+
+  private buildComponents(owner: Uint16Array, n: number): void {
+    this.ownerRef = owner;
+    const count = this.grid.count;
+    const nb = this.grid.neighbours;
+    const water = this.water;
+    if (this.comp.length !== count) this.comp = new Int32Array(count);
+    const comp = this.comp;
+    comp.fill(-1);
+    this.mainComp = new Int32Array(n).fill(-1);
+    const bestSize = new Int32Array(n);
+    const stack: number[] = [];
+    let id = 0;
+    for (let a = 0; a < n; a++) {
+      for (const start of this.hexes[a]) {
+        if (comp[start] >= 0) continue;
+        const o = owner[start];
+        comp[start] = id;
+        stack.push(start);
+        let size = 0;
+        while (stack.length) {
+          const h = stack.pop()!;
+          size++;
+          for (let d = 0; d < 6; d++) {
+            const j = nb[h * 6 + d];
+            if (j < 0 || comp[j] >= 0 || water[j] || owner[j] !== o) continue;
+            comp[j] = id;
+            stack.push(j);
+          }
+        }
+        if (size > bestSize[a]) {
+          bestSize[a] = size;
+          this.mainComp[a] = id;
+        }
+        id++;
+      }
+    }
+  }
+
+  /**
+   * Whether a land unit at `from` can plausibly reach own hex `to` by land.
+   * Units standing outside their own territory are given the benefit of the doubt.
+   */
+  reachable(from: number, to: number): boolean {
+    const a = this.comp[from];
+    const b = this.comp[to];
+    if (a < 0 || b < 0 || a === b) return true;
+    // Different components of the same owner: separated by foreign soil or sea.
+    const o = this.ownerRef;
+    return !o || o[from] !== o[to];
   }
 
   private rebuildFacilities(state: GameState): void {
@@ -111,8 +173,9 @@ export class TerritoryIndex {
     this.facilities = Array.from({ length: n }, () => []);
     const owner = state.hexOwner;
     for (const f of state.facilities.values()) {
-      const o = owner[f.hex];
-      if (o > 0 && o - 1 < n) this.facilities[o - 1].push(f.id);
+      // Facilities carry their owner (offshore platforms sit on unowned water).
+      const a = typeof f.nation === 'number' ? f.nation : owner[f.hex] - 1;
+      if (a >= 0 && a < n) this.facilities[a].push(f.id);
     }
     this.facilityVersion = state.facilityVersion;
   }
@@ -124,6 +187,16 @@ export class TerritoryIndex {
 
   borderLength(a: number, b: number): number {
     return this.border[a]?.get(b)?.length ?? 0;
+  }
+
+  /** Border hexes of a facing b that lie in a's main (largest) territory component. */
+  mainBorderLength(a: number, b: number): number {
+    const list = this.border[a]?.get(b);
+    if (!list) return 0;
+    const mc = this.mainComp[a];
+    let k = 0;
+    for (const h of list) if (this.comp[h] === mc) k++;
+    return k;
   }
 }
 
@@ -139,15 +212,34 @@ export function clusterBorder(grid: HexGrid, hexes: readonly number[], targetSiz
   const sectors: number[][] = [];
   const sorted = [...hexes].sort((a, b) => a - b);
 
+  // Geodesic walk along the border: adjacent steps cost 1, 2-hex bridges cost 2.
+  // Returns the component's hexes ordered by distance from `start`.
   const bfs = (start: number, mark: Set<number> | null): number[] => {
-    const seen = new Set<number>([start]);
-    const order: number[] = [start];
-    for (let qi = 0; qi < order.length; qi++) {
-      const h = order[qi];
-      grid.forRadius(h, 2, (m) => {
-        if (!member.has(m) || seen.has(m) || (mark && mark.has(m))) return;
-        seen.add(m);
-        order.push(m);
+    const dist = new Map<number, number>([[start, 0]]);
+    const done = new Set<number>();
+    const order: number[] = [];
+    const open: number[] = [start];
+    while (open.length) {
+      let bi = 0;
+      for (let i = 1; i < open.length; i++) {
+        const a = dist.get(open[i])!, b = dist.get(open[bi])!;
+        if (a < b || (a === b && open[i] < open[bi])) bi = i;
+      }
+      const h = open[bi];
+      open[bi] = open[open.length - 1];
+      open.pop();
+      if (done.has(h)) continue;
+      done.add(h);
+      order.push(h);
+      const dh = dist.get(h)!;
+      grid.forRadius(h, 2, (m, d) => {
+        if (d === 0 || !member.has(m) || done.has(m) || (mark && mark.has(m))) return;
+        const nd = dh + d;
+        const old = dist.get(m);
+        if (old === undefined || nd < old) {
+          dist.set(m, nd);
+          open.push(m);
+        }
       });
     }
     return order;

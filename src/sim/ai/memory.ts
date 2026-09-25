@@ -82,8 +82,14 @@ export interface NationMemory {
   intents: Map<number, UnitIntent>;
   offensives: Offensive[];
   amphib: AmphibOp[];
+  /** No new amphibious operation before this hour (after a failure). */
+  amphibRetryHour: number;
   fleets: Map<number, FleetIntent>; // naval unit id -> intent
   airRebaseHour: Map<number, number>; // air unit id -> last rebase hour
+  reinforceHour: Map<number, number>; // unit id -> last reinforce order hour
+  refitSince: Map<number, number>; // unit id -> hour it went to refit
+  /** Hexes where ground forces request air/artillery support this cycle. */
+  supportRequests: number[];
   warPlan: WarPlan | null;
   /** Nations whose war we joined / decided to join: target -> hour. */
   pendingJoin: Map<number, number>;
@@ -119,8 +125,12 @@ export interface FrontSector {
   anchor: number;
   threat: number;
   value: number;
+  /** Value from geometry (cities/capital nearby); `value` is reset to it every cycle. */
+  baseValue: number;
   demand: number;
   assigned: number;
+  /** Assigned power already in position (within 1 hex of its post). */
+  present: number;
   hot: boolean; // at war with the adversary
 }
 
@@ -129,12 +139,17 @@ export function createMemory(id: number, seed: number): NationMemory {
     id,
     rng: new RNG((seed ^ Math.imul(id + 1, 0x9e3779b1)) >>> 0),
     posture: 'peace',
-    nextCommandHour: 0,
+    // Stagger military command across the day so nations never all run in one hour.
+    nextCommandHour: (id * 7) % 24,
     intents: new Map(),
     offensives: [],
     amphib: [],
+    amphibRetryHour: 0,
     fleets: new Map(),
     airRebaseHour: new Map(),
+    reinforceHour: new Map(),
+    refitSince: new Map(),
+    supportRequests: [],
     warPlan: null,
     pendingJoin: new Map(),
     lastProposal: new Map(),

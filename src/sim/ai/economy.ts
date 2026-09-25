@@ -55,103 +55,98 @@ const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 // ---------------------------------------------------------------------------
 // Finance minister
 // ---------------------------------------------------------------------------
+/** Debt/GDP the bond market will tolerate (mirrors the credit-rating logic). */
+export function debtCeilingEstimate(n: Nation): number {
+  const base = n.baseline?.debtRatio ?? 0.6;
+  return Math.max(base * 1.15, 0.4 + 2.6 * Math.pow(n.creditRating / 100, 1.3));
+}
+
+const startResearch = new WeakMap<Nation, number>();
+
 export function runFinance(ctx: AIContext, me: number, mem: NationMemory): void {
   const game = ctx.game;
   const n = ctx.nation(me);
   const fv = financeView(n);
   const hour = ctx.state.hour;
   const demo = isDemocratic(n.government);
-  const minApproval = demo ? 48 : 30;
+  const minApproval = demo ? 45 : 30;
   const atWar = ctx.atWarAny(me);
   const bounds = taxBounds(n);
   const t = n.taxes;
   const s = n.spending;
   const canTouchTaxes = hour - mem.lastTaxChangeHour >= 72;
-  const debtRatio = n.gdp > 0 ? n.debt / n.gdp : 1;
-  const canBorrow = debtRatio < (demo ? 1.2 : 0.8) && n.creditRating > 20;
+  const gdp = Math.max(0.05, n.gdp);
+  const debtRatio = n.debt / gdp;
+  const ceiling = debtCeilingEstimate(n);
+  const canBorrow = debtRatio < ceiling * 0.95;
+  // Deficit as a share of GDP (positive = deficit).
+  const deficit = (-fv.balance * 365) / gdp;
+  // Tolerated structural deficit: like real governments, borrow while debt is sustainable.
+  const room = Math.max(0, Math.min(1, (ceiling - debtRatio) / 0.35));
+  let tolerated = (demo ? 0.03 : 0.015) * room + (atWar ? 0.03 * room : 0);
+  if (n.creditRating < 30) tolerated *= 0.5;
 
-  // 1. Liquidity: never let the treasury run dry.
-  if (n.treasury < fv.reserveTarget * 0.25 && (fv.balance < 0 || n.treasury < 0)) {
-    const need = Math.max(fv.reserveTarget * 0.6 - n.treasury, -fv.balance * 60);
-    if (canBorrow && need > 0) {
-      const amt = Math.max(0.05, Math.min(need, n.gdp * 0.05));
-      if (game.issueBonds(me, round3(amt)).ok) remember(mem, hour, 'finance', `issued ${amt.toFixed(2)}B bonds (treasury ${n.treasury.toFixed(2)}B)`);
-    }
+  // 1. Liquidity: keep a cash buffer so the state never defaults.
+  if (n.treasury < fv.reserveTarget * 0.3 && canBorrow) {
+    const need = Math.max(fv.reserveTarget * 0.6 - n.treasury, fv.balance < 0 ? -fv.balance * 30 : 0);
+    const amt = Math.min(need, (ceiling * 0.95 - debtRatio) * gdp, gdp * 0.05);
+    if (amt > 0.01 && game.issueBonds(me, round3(amt)).ok) remember(mem, hour, 'finance', `issued ${amt.toFixed(2)}B bonds (treasury ${n.treasury.toFixed(2)}B, debt ${(debtRatio * 100).toFixed(0)}% GDP)`);
   }
 
   const newTaxes: Partial<Taxes> = {};
   const newSpending: Partial<Spending> = {};
-  let changed = false;
+  const approvalOk = n.approval > minApproval + 4;
 
-  if (fv.balance < 0 && fv.daysLeft < 240) {
-    // Deficit: raise revenue / trim discretionary spending.
-    if (canTouchTaxes) {
-      const approvalOk = n.approval > minApproval + 5;
-      // Prefer corporate, then sales, then income tax (most visible).
-      if (t.corporate < bounds.max.corporate - 0.005) newTaxes.corporate = clamp(t.corporate + 0.01, bounds.min.corporate, bounds.max.corporate);
-      else if (t.sales < bounds.max.sales - 0.005) newTaxes.sales = clamp(t.sales + 0.01, bounds.min.sales, bounds.max.sales);
-      else if (approvalOk && t.income < bounds.max.income - 0.005) newTaxes.income = clamp(t.income + 0.01, bounds.min.income, bounds.max.income);
-      if (Object.keys(newTaxes).length) changed = true;
+  if (deficit > tolerated + 0.004 || (n.treasury < 0 && !canBorrow)) {
+    // Consolidation: first trim waste, then raise the broad taxes.
+    const severe = deficit > tolerated + 0.03 || !canBorrow;
+    const cut = severe ? 0.95 : 0.98;
+    for (const k of ['culture', 'environment', 'infrastructure'] as const) newSpending[k] = s[k] * cut;
+    if (severe && (!atWar || !approvalOk)) newSpending.family = s.family * 0.98;
+    if (canTouchTaxes && (approvalOk || severe)) {
+      if (t.sales < bounds.max.sales - 0.005) newTaxes.sales = clamp(t.sales + 0.01, bounds.min.sales, bounds.max.sales);
+      else if (t.income < bounds.max.income - 0.005) newTaxes.income = clamp(t.income + 0.01, bounds.min.income, bounds.max.income);
+      else if (t.corporate < bounds.max.corporate - 0.005) newTaxes.corporate = clamp(t.corporate + 0.01, bounds.min.corporate, bounds.max.corporate);
     }
-    const cut = fv.daysLeft < 60 ? 0.94 : 0.97;
-    for (const k of ['culture', 'environment', 'infrastructure'] as const) {
-      if (s[k] > 0.0005) {
-        newSpending[k] = s[k] * cut;
-        changed = true;
-      }
-    }
-    if (fv.daysLeft < 45 && !atWar && n.approval > minApproval) {
-      newSpending.family = s.family * 0.97;
-      newSpending.socialAssistance = s.socialAssistance * 0.98;
-    }
-  } else if (fv.balance > 0 && n.treasury > fv.reserveTarget * 2) {
-    // Comfortable surplus: repay debt, then buy popularity.
-    if (n.debt > 0.01) {
-      const amt = Math.min(n.debt, (n.treasury - fv.reserveTarget * 1.5) * 0.5);
+  } else if (deficit < tolerated - 0.015 && n.treasury > fv.reserveTarget) {
+    // Fiscal room: repay expensive debt when very liquid, then invest & buy popularity.
+    if (n.debt > 0.01 && n.treasury > fv.reserveTarget * 3 && (n.interestRate ?? 0) > 0.03) {
+      const amt = Math.min(n.debt, (n.treasury - fv.reserveTarget * 2) * 0.3);
       if (amt > 0.01 && game.repayDebt(me, round3(amt)).ok) remember(mem, hour, 'finance', `repaid ${amt.toFixed(2)}B debt`);
     }
-    if (canTouchTaxes && n.approval < 70) {
+    if (canTouchTaxes && n.approval < 65) {
       if (t.income > bounds.min.income + 0.01) newTaxes.income = t.income - 0.01;
       else if (t.sales > bounds.min.sales + 0.01) newTaxes.sales = t.sales - 0.01;
-      if (Object.keys(newTaxes).length) changed = true;
     }
-    if (fv.balance > fv.expenses * 0.08) {
-      newSpending.health = Math.min(0.12, s.health * 1.02);
-      newSpending.education = Math.min(0.1, s.education * 1.02);
-      newSpending.infrastructure = Math.min(0.08, s.infrastructure * 1.02);
-      changed = true;
-    }
+    // Growth-oriented investment (infrastructure & education pay back in GDP).
+    newSpending.infrastructure = Math.min(0.06, s.infrastructure * 1.02);
+    newSpending.education = Math.min(0.08, s.education * 1.01);
+    if (n.approval < 60) newSpending.health = Math.min(0.12, s.health * 1.01);
   }
 
-  // 2. Approval management (democracies care more).
-  if (n.approval < minApproval && n.treasury > fv.reserveTarget * 0.5) {
-    if (canTouchTaxes && newTaxes.income === undefined && t.income > bounds.min.income + 0.01) {
-      newTaxes.income = t.income - 0.01;
-      changed = true;
-    }
-    newSpending.health = Math.min(0.12, (newSpending.health ?? s.health) * 1.03);
-    newSpending.socialAssistance = Math.min(0.1, (newSpending.socialAssistance ?? s.socialAssistance) * 1.03);
-    if (!demo) newSpending.lawEnforcement = Math.min(0.05, s.lawEnforcement * 1.03);
-    changed = true;
+  // 2. Approval management (democracies care more; elections loom).
+  if (n.approval < minApproval && deficit < tolerated + 0.02) {
+    if (canTouchTaxes && newTaxes.income === undefined && newTaxes.sales === undefined && t.income > bounds.min.income + 0.01) newTaxes.income = t.income - 0.01;
+    newSpending.health = Math.min(0.12, (newSpending.health ?? s.health) * 1.02);
+    newSpending.socialAssistance = Math.min(0.2, (newSpending.socialAssistance ?? s.socialAssistance) * 1.02);
+    if (!demo) newSpending.lawEnforcement = Math.min(0.05, s.lawEnforcement * 1.02);
   }
 
-  if (changed) {
-    if (Object.keys(newTaxes).length) {
-      if (game.setTaxes(me, newTaxes).ok) {
-        mem.lastTaxChangeHour = hour;
-        remember(mem, hour, 'finance', `taxes ${fmtTaxes({ ...t, ...newTaxes })} (balance ${fv.balance.toFixed(3)}B/d, approval ${n.approval.toFixed(0)})`);
-      }
-    }
-    if (Object.keys(newSpending).length) game.setSpending(me, newSpending);
+  if (Object.keys(newTaxes).length && game.setTaxes(me, newTaxes).ok) {
+    mem.lastTaxChangeHour = hour;
+    remember(mem, hour, 'finance', `taxes ${fmtTaxes({ ...t, ...newTaxes })} (deficit ${(deficit * 100).toFixed(1)}% GDP, tolerated ${(tolerated * 100).toFixed(1)}%, approval ${n.approval.toFixed(0)})`);
   }
+  if (Object.keys(newSpending).length) game.setSpending(me, newSpending);
 
-  // 3. Research budget.
-  const dev = n.development;
-  let research = 0.003 + 0.022 * dev + 0.008 * n.techLevel;
-  if (fv.balance < 0 && fv.daysLeft < 120) research *= 0.6;
-  if (atWar) research *= 0.85;
-  research = clamp(research, 0.002, 0.035);
-  if (Math.abs(research - n.researchBudget) > 0.0015) game.setResearchBudget(me, round4(research));
+  // 3. Research budget: anchored to the nation's starting effort.
+  if (!startResearch.has(n)) startResearch.set(n, n.researchBudget);
+  const base = startResearch.get(n) ?? n.researchBudget;
+  let f = 1;
+  if (deficit > tolerated + 0.01) f = 0.8;
+  else if (deficit < tolerated - 0.02 && n.development > 0.5) f = 1.25;
+  if (atWar) f *= 0.85;
+  const research = clamp(base * f, 0.0005, 0.02);
+  if (Math.abs(research - n.researchBudget) > Math.max(0.0003, base * 0.05)) game.setResearchBudget(me, round4(research));
 }
 
 function round3(x: number): number {
