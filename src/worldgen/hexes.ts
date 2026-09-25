@@ -80,7 +80,7 @@ export function deriveHexes(
     temp[i] = sumT / cnt;
     prec[i] = sumP / cnt;
     lakeFrac[i] = lake / cnt;
-    if (land / cnt >= 0.5) {
+    if (land / cnt >= 0.34) {
       isLand[i] = 1;
       const avgE = sumLandE / land;
       elevation[i] = avgE;
