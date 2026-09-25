@@ -310,7 +310,7 @@ export function showNationSelect(root: HTMLElement, world: WorldData, renderer: 
       try {
         renderer.setHexHighlight(inf.hexes, '#ffc040');
         if (fly) {
-          const dist = Math.max(55, Math.min(420, inf.extent * 2.6 + 35));
+          const dist = Math.max(25, Math.min(260, inf.extent * 1.6 + 15));
           renderer.focusOn(inf.cx, inf.cz, dist);
         }
       } catch (e) {

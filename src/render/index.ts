@@ -55,7 +55,7 @@ export interface WorldContext {
 export class Renderer implements MapRenderer {
   readonly canvas: HTMLCanvasElement;
   readonly settings: RenderSettings = {
-    dayNight: true, clouds: true, shadows: true, hexGrid: true, labels: true, units: true, quality: 'medium',
+    dayNight: true, clouds: false, shadows: true, hexGrid: true, labels: true, units: true, quality: 'medium',
   };
   mapMode: MapMode = MapMode.Political;
 

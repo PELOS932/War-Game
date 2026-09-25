@@ -78,7 +78,7 @@ async function startSession(saveJson: string | null): Promise<void> {
   const player = game.state.nations[game.state.playerNation];
   if (player) {
     const capital = game.state.cities[player.capitalCity];
-    if (capital) s.renderer.focusOn(capital.x, capital.z, 60);
+    if (capital) s.renderer.focusOn(capital.x, capital.z, 28);
   }
 }
 
