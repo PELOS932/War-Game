@@ -2,7 +2,7 @@ import type { WorldData } from '../worldgen/types';
 import { loadCachedWorld, saveCachedWorld } from './cache';
 
 /** Bump when the world builder output changes so stale caches are ignored. */
-export const WORLD_CACHE_KEY = 'earth-v1';
+export const WORLD_CACHE_KEY = 'world-procedural-v1';
 
 type Progress = (stage: string, fraction: number) => void;
 
@@ -17,38 +17,13 @@ export async function loadWorld(progress: Progress): Promise<WorldData> {
     progress('World loaded from cache', 1);
     return cached;
   }
-  let world: WorldData;
-  try {
-    world = await generateInWorker(progress);
-  } catch (err) {
-    console.warn('World worker failed, generating on main thread', err);
-    const { generateEarth } = await import('../worldgen/earth/index');
-    world = generateEarth(progress);
-  }
+  // The real-Earth builder is not finished yet; use the procedural world.
+  await new Promise((r) => setTimeout(r, 30));
+  const { generateWorld, DEFAULT_SETTINGS } = await import('../worldgen/generate');
+  const world: WorldData = generateWorld({ seed: 2030, ...DEFAULT_SETTINGS }, progress);
   progress('Caching world', 1);
   // Copy before caching is unnecessary: IndexedDB structured-clones the data.
   void saveCachedWorld(WORLD_CACHE_KEY, world);
   return world;
 }
 
-function generateInWorker(progress: Progress): Promise<WorldData> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('../worldgen/worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (e: MessageEvent) => {
-      const msg = e.data as { type: string; stage?: string; fraction?: number; world?: WorldData; error?: string };
-      if (msg.type === 'progress') progress(msg.stage ?? '', msg.fraction ?? 0);
-      else if (msg.type === 'done' && msg.world) {
-        worker.terminate();
-        resolve(msg.world);
-      } else if (msg.type === 'error') {
-        worker.terminate();
-        reject(new Error(msg.error));
-      }
-    };
-    worker.onerror = (e) => {
-      worker.terminate();
-      reject(new Error(e.message));
-    };
-    worker.postMessage({ type: 'generate', kind: 'earth' });
-  });
-}

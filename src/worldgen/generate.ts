@@ -128,6 +128,23 @@ export function generateWorld(settings: WorldSettings, progress: Progress = () =
   progress('Building cities and roads', 0);
   const settle = generateSettlements(grid, hexLayer, politics.owner, politics.nations, rng.fork(50), names);
 
+  // Fill real-style statistics for the generated nations.
+  const popK = new Float64Array(politics.nations.length);
+  for (let i = 0; i < politics.owner.length; i++) if (politics.owner[i]) popK[politics.owner[i] - 1] += settle.population[i];
+  for (const nt of politics.nations) {
+    const pop = popK[nt.id] / 1000;
+    const perCap = 1500 + 62000 * nt.development * nt.development;
+    nt.population = Math.max(0.2, pop);
+    nt.gdp = Math.max(1, (nt.population * perCap) / 1000);
+    nt.activeMilitary = nt.population * 1000 * 0.0035 * (0.5 + nt.militarism);
+    nt.defenseBudget = 1 + 3 * nt.militarism;
+    nt.navyRating = Math.round(Math.min(10, nt.navalFocus * 6 + nt.development * 4));
+    nt.airRating = Math.round(Math.min(10, nt.development * 8 + nt.militarism * 2));
+    nt.nuclear = nt.development > 0.7 && nt.population > 80;
+    const cap = settle.cities.find((c) => c.nation === nt.id && c.capital);
+    if (cap) nt.capitalName = cap.name;
+  }
+
   progress('Finalizing world', 1);
   return {
     settings,
