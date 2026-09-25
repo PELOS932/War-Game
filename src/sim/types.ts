@@ -296,6 +296,8 @@ export interface Facility {
   efficiency: number;
   /** Total construction days of the current build/upgrade (for progress bars). */
   constructionTotal: number;
+  /** Days left on a level upgrade (> 0 while upgrading; the facility keeps operating). */
+  upgradeDaysLeft: number;
 }
 
 // ---------------------------------------------------------------------------

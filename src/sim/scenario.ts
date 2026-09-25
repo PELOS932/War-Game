@@ -509,7 +509,7 @@ function newFacility(state: GameState, type: FacilityType, hex: number, level: n
   const f: Facility = {
     id: state.nextId++, type, hex, level: Math.max(1, Math.min(FACILITY_DEFS[type].maxLevel, level)), damage: 0,
     constructionDaysLeft: 0, x: grid.cx[hex] + Math.cos(ang) * rad, z: grid.cz[hex] + Math.sin(ang) * rad,
-    nation, efficiency: 1, constructionTotal: 0,
+    nation, efficiency: 1, constructionTotal: 0, upgradeDaysLeft: 0,
   };
   state.facilities.set(f.id, f);
   if (list) list.push(f.id);
