@@ -136,7 +136,7 @@ export function computeHydrology(
       for (const c of comp) {
         lakeId[c] = -3;
         elev[c] = Math.max(elev[c], elev[c] + (filled[c] - route[c]) * 0.95 - 0.5);
-        if (arid && area >= 25 && maxDepth > 20) saltFlat[c] = 1;
+        if (arid && area >= 150 && maxDepth > 40) saltFlat[c] = 1;
       }
     }
   }

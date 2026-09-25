@@ -1,0 +1,89 @@
+/** Real cities (2030 metro population estimates, thousands). Capitals marked with *. */
+import type { CityData } from './schema';
+
+const RAW = `
+MAR|Rabat*|34.02|-6.84|2100;MAR|Casablanca|33.57|-7.59|4500;TUN|Tunis*|36.81|10.18|2600;LBY|Tripoli*|32.89|13.19|1300;LBY|Benghazi|32.12|20.07|900
+EGY|Cairo*|30.04|31.24|25000;EGY|Alexandria|31.2|29.92|6200;SDN|Khartoum*|15.5|32.56|7500;SSD|Juba*|4.85|31.58|600;ETH|Addis Ababa*|9.03|38.74|6500
+ERI|Asmara*|15.32|38.93|1000;DJI|Djibouti*|11.59|43.15|700;SOM|Mogadishu*|2.05|45.32|3200;KEN|Nairobi*|-1.29|36.82|6500;KEN|Mombasa|-4.04|39.67|1600
+UGA|Kampala*|0.35|32.58|4500;RWA|Kigali*|-1.95|30.06|1600;BDI|Gitega*|-3.43|29.93|200;TZA|Dodoma*|-6.16|35.75|800;TZA|Dar es Salaam|-6.79|39.21|9000
+COD|Kinshasa*|-4.44|15.27|20000;COD|Lubumbashi|-11.66|27.48|3000;COG|Brazzaville*|-4.26|15.24|2800;GAB|Libreville*|0.39|9.45|1000;GNQ|Malabo*|3.75|8.78|350
+CMR|Yaoundé*|3.85|11.5|5000;CMR|Douala|4.05|9.7|4800;CAF|Bangui*|4.39|18.56|1100;NER|Niamey*|13.51|2.11|1900;MLI|Bamako*|12.64|-8.0|4000
+BFA|Ouagadougou*|12.37|-1.52|4000;MRT|Nouakchott*|18.08|-15.98|1800;SEN|Dakar*|14.72|-17.47|4200;GMB|Banjul*|13.45|-16.58|500;GNB|Bissau*|11.86|-15.6|700
+GIN|Conakry*|9.64|-13.58|2500;SLE|Freetown*|8.48|-13.23|1500;LBR|Monrovia*|6.3|-10.8|1800;GHA|Accra*|5.6|-0.19|3500;GHA|Kumasi|6.69|-1.62|3900
+TGO|Lomé*|6.13|1.22|2200;BEN|Porto-Novo*|6.5|2.6|400;BEN|Cotonou|6.37|2.39|1300;NGA|Abuja*|9.06|7.49|4800;NGA|Lagos|6.52|3.38|20000;NGA|Kano|12.0|8.52|5000
+NGA|Port Harcourt|4.82|7.03|4000;CIV|Yamoussoukro*|6.83|-5.29|400;CIV|Abidjan|5.36|-4.01|6500;CPV|Praia*|14.93|-23.51|200;STP|São Tomé*|0.34|6.73|100
+AGO|Luanda*|-8.84|13.23|11000;ZMB|Lusaka*|-15.39|28.32|3700;MWI|Lilongwe*|-13.96|33.79|1500;MOZ|Maputo*|-25.97|32.57|2000;ZWE|Harare*|-17.83|31.05|2300
+NAM|Windhoek*|-22.56|17.08|500;BWA|Gaborone*|-24.65|25.91|300;ZAF|Pretoria*|-25.75|28.19|3000;ZAF|Johannesburg|-26.2|28.05|11000;ZAF|Cape Town|-33.92|18.42|5200
+ZAF|Durban|-29.86|31.02|3700;LSO|Maseru*|-29.31|27.48|350;SWZ|Mbabane*|-26.31|31.14|100;MDG|Antananarivo*|-18.88|47.51|4200;MUS|Port Louis*|-20.16|57.5|150
+SYC|Victoria*|-4.62|55.45|30;COM|Moroni*|-11.7|43.26|70;DZA|Algiers*|36.75|3.06|3500;DZA|Oran|35.7|-0.63|1600
+USA|Washington*|38.9|-77.04|6500;USA|New York|40.71|-74.0|20000;USA|Los Angeles|34.05|-118.24|13000;USA|Chicago|41.88|-87.63|9500;USA|Houston|29.76|-95.37|8000
+USA|Dallas|32.78|-96.8|8500;USA|Miami|25.76|-80.19|6500;USA|Atlanta|33.75|-84.39|6700;USA|Seattle|47.61|-122.33|4300;USA|San Francisco|37.77|-122.42|4800
+USA|Denver|39.74|-104.99|3200;USA|Boston|42.36|-71.06|5000;USA|Phoenix|33.45|-112.07|5300;USA|Detroit|42.33|-83.05|4300;USA|San Diego|32.72|-117.16|3400
+USA|Norfolk|36.85|-76.29|1800;USA|Anchorage|61.22|-149.9|300;USA|Honolulu|21.31|-157.86|1000;USA|Minneapolis|44.98|-93.27|3800;USA|New Orleans|29.95|-90.07|1300
+CAN|Ottawa*|45.42|-75.7|1500;CAN|Toronto|43.65|-79.38|7000;CAN|Montreal|45.5|-73.57|4500;CAN|Vancouver|49.28|-123.12|2900;CAN|Calgary|51.05|-114.07|1700
+CAN|Winnipeg|49.9|-97.14|900;CAN|Halifax|44.65|-63.57|500;MEX|Mexico City*|19.43|-99.13|23000;MEX|Guadalajara|20.67|-103.35|5800;MEX|Monterrey|25.69|-100.32|5800
+MEX|Tijuana|32.51|-117.04|2500;GTM|Guatemala City*|14.63|-90.51|3300;BLZ|Belmopan*|17.25|-88.77|30;HND|Tegucigalpa*|14.07|-87.19|1500;SLV|San Salvador*|13.69|-89.19|1200
+NIC|Managua*|12.13|-86.25|1100;CRI|San José*|9.93|-84.08|1500;PAN|Panama City*|8.98|-79.52|2100;CUB|Havana*|23.11|-82.37|2200;HTI|Port-au-Prince*|18.54|-72.34|3200
+DOM|Santo Domingo*|18.49|-69.93|4000;JAM|Kingston*|17.97|-76.79|1300;BHS|Nassau*|25.05|-77.35|300;TTO|Port of Spain*|10.65|-61.51|550;BRB|Bridgetown*|13.1|-59.62|100
+LCA|Castries*|14.01|-60.99|70;VCT|Kingstown*|13.16|-61.22|30;DMA|Roseau*|15.3|-61.39|20;KNA|Basseterre*|17.3|-62.72|15
+COL|Bogotá*|4.71|-74.07|12500;COL|Medellín|6.24|-75.58|4300;COL|Cali|3.45|-76.53|3000;VEN|Caracas*|10.49|-66.88|3100;VEN|Maracaibo|10.65|-71.64|2400
+GUY|Georgetown*|6.8|-58.16|250;SUR|Paramaribo*|5.85|-55.2|300;BRA|Brasília*|-15.79|-47.88|5000;BRA|São Paulo|-23.55|-46.63|24000;BRA|Rio de Janeiro|-22.91|-43.17|14000
+BRA|Belo Horizonte|-19.92|-43.94|6300;BRA|Salvador|-12.97|-38.5|4200;BRA|Recife|-8.05|-34.88|4300;BRA|Fortaleza|-3.73|-38.52|4300;BRA|Manaus|-3.12|-60.02|2500
+BRA|Porto Alegre|-30.03|-51.23|4400;ECU|Quito*|-0.18|-78.47|2200;ECU|Guayaquil|-2.19|-79.89|3300;PER|Lima*|-12.05|-77.04|12500;BOL|La Paz*|-16.5|-68.15|2100
+BOL|Santa Cruz|-17.78|-63.18|2100;PRY|Asunción*|-25.26|-57.58|3700;ARG|Buenos Aires*|-34.6|-58.38|16500;ARG|Córdoba|-31.42|-64.18|1700;ARG|Rosario|-32.95|-60.64|1400
+URY|Montevideo*|-34.9|-56.16|1800;CHL|Santiago*|-33.45|-70.67|7400;CHL|Valparaíso|-33.05|-71.62|1000
+SYR|Damascus*|33.51|36.28|3000;SYR|Aleppo|36.2|37.16|2300;LBN|Beirut*|33.89|35.5|2500;ISR|Jerusalem*|31.77|35.21|1300;ISR|Tel Aviv|32.09|34.78|4500
+PSE|Ramallah*|31.9|35.2|400;PSE|Gaza|31.5|34.47|800;JOR|Amman*|31.95|35.93|4800;IRQ|Baghdad*|33.31|44.36|8500;IRQ|Basra|30.51|47.81|1500;IRQ|Mosul|36.34|43.13|1800
+IRN|Tehran*|35.69|51.39|10000;IRN|Mashhad|36.3|59.6|3400;IRN|Isfahan|32.65|51.67|2300;IRN|Tabriz|38.08|46.29|1800;IRN|Bandar Abbas|27.18|56.27|700
+SAU|Riyadh*|24.71|46.68|8500;SAU|Jeddah|21.49|39.19|5000;SAU|Dammam|26.43|50.1|1500;KWT|Kuwait City*|29.38|47.99|3500;BHR|Manama*|26.23|50.58|700;QAT|Doha*|25.29|51.53|2600
+ARE|Abu Dhabi*|24.45|54.38|1700;ARE|Dubai|25.2|55.27|3800;OMN|Muscat*|23.59|58.41|1700;YEM|Sana'a*|15.37|44.19|3700;YEM|Aden|12.79|45.03|1100
+AFG|Kabul*|34.53|69.17|5500;AFG|Kandahar|31.61|65.71|700;PAK|Islamabad*|33.69|73.05|1400;PAK|Karachi|24.86|67.01|20000;PAK|Lahore|31.55|74.34|15000;PAK|Peshawar|34.01|71.58|2700
+IND|New Delhi*|28.61|77.21|37000;IND|Mumbai|19.08|72.88|25000;IND|Kolkata|22.57|88.36|17000;IND|Bangalore|12.97|77.59|16000;IND|Chennai|13.08|80.27|13500
+IND|Hyderabad|17.39|78.49|12500;IND|Ahmedabad|23.02|72.57|9500;IND|Pune|18.52|73.86|8000;IND|Lucknow|26.85|80.95|4500;IND|Srinagar|34.08|74.8|1700;IND|Guwahati|26.14|91.74|1300
+NPL|Kathmandu*|27.72|85.32|1800;BTN|Thimphu*|27.47|89.64|120;BGD|Dhaka*|23.81|90.41|28000;BGD|Chittagong|22.36|91.78|6000;LKA|Colombo*|6.93|79.86|2500;MDV|Malé*|4.18|73.51|250
+KAZ|Astana*|51.17|71.45|1500;KAZ|Almaty|43.24|76.89|2300;UZB|Tashkent*|41.3|69.24|3000;UZB|Samarkand|39.65|66.96|600;TKM|Ashgabat*|37.96|58.33|1100;KGZ|Bishkek*|42.87|74.59|1200
+TJK|Dushanbe*|38.56|68.79|1100;MNG|Ulaanbaatar*|47.89|106.91|1800;CHN|Beijing*|39.9|116.4|23000;CHN|Shanghai|31.23|121.47|30000;CHN|Guangzhou|23.13|113.26|15000
+CHN|Shenzhen|22.54|114.06|14000;CHN|Chongqing|29.56|106.55|18000;CHN|Tianjin|39.34|117.36|15000;CHN|Chengdu|30.57|104.07|11000;CHN|Wuhan|30.59|114.31|9500
+CHN|Xi'an|34.34|108.94|9000;CHN|Hangzhou|30.27|120.16|8500;CHN|Nanjing|32.06|118.8|8000;CHN|Shenyang|41.8|123.43|7500;CHN|Harbin|45.8|126.53|6500;CHN|Kunming|25.04|102.71|5000
+CHN|Ürümqi|43.83|87.62|4000;CHN|Lhasa|29.65|91.12|600;CHN|Qingdao|36.07|120.38|6500;CHN|Dalian|38.91|121.6|4500;CHN|Hong Kong|22.32|114.17|7600;CHN|Xiamen|24.48|118.09|5000
+TWN|Taipei*|25.03|121.56|7000;TWN|Kaohsiung|22.63|120.3|2700;JPN|Tokyo*|35.68|139.69|36000;JPN|Osaka|34.69|135.5|18500;JPN|Nagoya|35.18|136.91|9400;JPN|Fukuoka|33.59|130.4|5500
+JPN|Sapporo|43.06|141.35|2600;JPN|Sendai|38.27|140.87|2200;JPN|Hiroshima|34.39|132.46|1400;PRK|Pyongyang*|39.04|125.76|3200;PRK|Hamhung|39.92|127.54|800
+KOR|Seoul*|37.57|126.98|26000;KOR|Busan|35.18|129.08|3300;VNM|Hanoi*|21.03|105.85|10000;VNM|Ho Chi Minh City|10.82|106.63|12000;VNM|Da Nang|16.05|108.2|1500
+LAO|Vientiane*|17.98|102.63|1000;KHM|Phnom Penh*|11.56|104.92|2500;THA|Bangkok*|13.76|100.5|12000;THA|Chiang Mai|18.79|98.99|1200;MMR|Naypyidaw*|19.76|96.08|1000
+MMR|Yangon|16.87|96.2|6000;MYS|Kuala Lumpur*|3.14|101.69|9000;MYS|Kota Kinabalu|5.98|116.07|600;SGP|Singapore*|1.29|103.85|6200;BRN|Bandar Seri Begawan*|4.89|114.94|250
+IDN|Jakarta*|-6.21|106.85|35000;IDN|Surabaya|-7.25|112.75|10000;IDN|Medan|3.6|98.67|5000;IDN|Makassar|-5.15|119.43|2800;IDN|Balikpapan|-1.27|116.83|900;IDN|Jayapura|-2.53|140.72|400
+TLS|Dili*|-8.56|125.57|300;PHL|Manila*|14.6|120.98|16000;PHL|Cebu|10.32|123.89|3200;PHL|Davao|7.07|125.61|2200
+AUS|Canberra*|-35.28|149.13|480;AUS|Sydney|-33.87|151.21|5800;AUS|Melbourne|-37.81|144.96|5700;AUS|Brisbane|-27.47|153.03|2900;AUS|Perth|-31.95|115.86|2400
+AUS|Adelaide|-34.93|138.6|1500;AUS|Darwin|-12.46|130.84|170;NZL|Wellington*|-41.29|174.78|450;NZL|Auckland|-36.85|174.76|1900;PNG|Port Moresby*|-9.44|147.18|500
+SLB|Honiara*|-9.43|159.95|100;VUT|Port Vila*|-17.73|168.32|60;FJI|Suva*|-18.14|178.44|200;WSM|Apia*|-13.83|-171.77|40;KIR|Tarawa*|1.33|172.98|70
+FSM|Palikir*|6.92|158.16|10;MHL|Majuro*|7.09|171.38|30;PLW|Ngerulmud*|7.5|134.62|10
+GBR|London*|51.51|-0.13|10500;GBR|Birmingham|52.49|-1.9|2700;GBR|Manchester|53.48|-2.24|2900;GBR|Glasgow|55.86|-4.25|1700;GBR|Belfast|54.6|-5.93|650;GBR|Portsmouth|50.8|-1.09|900
+IRL|Dublin*|53.35|-6.26|1500;FRA|Paris*|48.86|2.35|11500;FRA|Lyon|45.76|4.84|2400;FRA|Marseille|43.3|5.37|1900;FRA|Toulouse|43.6|1.44|1500;FRA|Bordeaux|44.84|-0.58|1300
+FRA|Lille|50.63|3.06|1500;FRA|Brest|48.39|-4.49|300;ESP|Madrid*|40.42|-3.7|7000;ESP|Barcelona|41.39|2.17|5700;ESP|Valencia|39.47|-0.38|1700;ESP|Seville|37.39|-5.98|1500
+PRT|Lisbon*|38.72|-9.14|3000;PRT|Porto|41.15|-8.61|1700;ITA|Rome*|41.9|12.5|4300;ITA|Milan|45.46|9.19|5300;ITA|Naples|40.85|14.27|3100;ITA|Turin|45.07|7.69|1800
+ITA|Palermo|38.12|13.36|1000;ITA|Venice|45.44|12.32|850;DEU|Berlin*|52.52|13.4|4700;DEU|Hamburg|53.55|9.99|3400;DEU|Munich|48.14|11.58|3000;DEU|Cologne|50.94|6.96|3700
+DEU|Frankfurt|50.11|8.68|2800;DEU|Stuttgart|48.78|9.18|2800;NLD|Amsterdam*|52.37|4.9|2600;NLD|Rotterdam|51.92|4.48|1900;BEL|Brussels*|50.85|4.35|2200;BEL|Antwerp|51.22|4.4|1100
+LUX|Luxembourg*|49.61|6.13|650;CHE|Bern*|46.95|7.45|450;CHE|Zurich|47.38|8.54|1500;CHE|Geneva|46.2|6.14|650;AUT|Vienna*|48.21|16.37|2100;DNK|Copenhagen*|55.68|12.57|1400
+NOR|Oslo*|59.91|10.75|1100;NOR|Bergen|60.39|5.32|450;NOR|Tromsø|69.65|18.96|80;SWE|Stockholm*|59.33|18.07|1700;SWE|Gothenburg|57.71|11.97|1100;FIN|Helsinki*|60.17|24.94|1600
+ISL|Reykjavík*|64.15|-21.94|250;MLT|Valletta*|35.9|14.51|480;POL|Warsaw*|52.23|21.01|3200;POL|Kraków|50.06|19.94|1500;POL|Gdańsk|54.35|18.65|1100;POL|Wrocław|51.11|17.03|1200
+CZE|Prague*|50.08|14.44|2300;SVK|Bratislava*|48.15|17.11|700;HUN|Budapest*|47.5|19.04|3000;SVN|Ljubljana*|46.06|14.51|550;HRV|Zagreb*|45.81|15.98|1100;HRV|Split|43.51|16.44|350
+BIH|Sarajevo*|43.86|18.41|550;SRB|Belgrade*|44.79|20.45|1700;MNE|Podgorica*|42.44|19.26|200;KOS|Pristina*|42.66|21.17|250;ALB|Tirana*|41.33|19.82|900;MKD|Skopje*|42.0|21.43|600
+GRC|Athens*|37.98|23.73|3600;GRC|Thessaloniki|40.64|22.94|1100;BGR|Sofia*|42.7|23.32|1600;BGR|Varna|43.21|27.91|450;ROU|Bucharest*|44.43|26.1|2200;ROU|Cluj-Napoca|46.77|23.6|450
+ROU|Constanța|44.18|28.63|400;MDA|Chișinău*|47.01|28.86|750;UKR|Kyiv*|50.45|30.52|3500;UKR|Kharkiv|49.99|36.23|1500;UKR|Odesa|46.48|30.72|1000;UKR|Dnipro|48.46|35.05|1000
+UKR|Lviv|49.84|24.03|750;UKR|Zaporizhzhia|47.84|35.14|700;BLR|Minsk*|53.9|27.57|2100;LTU|Vilnius*|54.69|25.28|750;LVA|Riga*|56.95|24.11|850;EST|Tallinn*|59.44|24.75|600
+RUS|Moscow*|55.76|37.62|17500;RUS|Saint Petersburg|59.93|30.34|5600;RUS|Novosibirsk|55.03|82.92|1700;RUS|Yekaterinburg|56.84|60.6|1600;RUS|Kazan|55.8|49.11|1300
+RUS|Nizhny Novgorod|56.3|43.94|1250;RUS|Samara|53.2|50.15|1150;RUS|Rostov-on-Don|47.24|39.71|1150;RUS|Volgograd|48.71|44.51|1000;RUS|Krasnoyarsk|56.01|92.87|1100
+RUS|Omsk|54.99|73.37|1100;RUS|Irkutsk|52.29|104.28|650;RUS|Vladivostok|43.12|131.89|600;RUS|Khabarovsk|48.48|135.08|600;RUS|Murmansk|68.97|33.08|270;RUS|Kaliningrad|54.71|20.51|500
+RUS|Sevastopol|44.62|33.53|500;RUS|Yakutsk|62.03|129.73|350;RUS|Arkhangelsk|64.54|40.54|300;RUS|Petropavlovsk-Kamchatsky|53.02|158.65|180;RUS|Norilsk|69.35|88.2|180
+GEO|Tbilisi*|41.72|44.79|1200;ARM|Yerevan*|40.18|44.51|1100;AZE|Baku*|40.41|49.87|2400;CYP|Nicosia*|35.17|33.36|350;TUR|Ankara*|39.93|32.86|5800;TUR|Istanbul|41.01|28.98|16500
+TUR|Izmir|38.42|27.14|3200;TUR|Antalya|36.9|30.7|1600;TUR|Diyarbakır|37.91|40.24|1100;TUR|Erzurum|39.9|41.27|450
+`;
+
+export const CITIES: CityData[] = RAW.split(/[;\n]/)
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((row) => {
+    const [country, rawName, lat, lon, pop] = row.split('|');
+    const capital = rawName.endsWith('*');
+    return { country, name: capital ? rawName.slice(0, -1) : rawName, lat: Number(lat), lon: Number(lon), pop: Number(pop), capital };
+  });

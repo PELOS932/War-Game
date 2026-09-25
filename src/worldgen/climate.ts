@@ -134,12 +134,12 @@ export function potentialEvap(t: number): number {
 
 export function classifyBiome(t: number, p: number, elevM: number, slope: number, lowWet: number): Biome {
   if (elevM <= 0) return Biome.Ocean;
-  if (t < -9) return Biome.Ice;
+  if (t < -16) return Biome.Ice;
   const wet = p / potentialEvap(t);
-  if (t < -3) return Biome.Tundra;
+  if (t < -10) return Biome.Tundra;
   if (elevM > 3200 && t < 2) return Biome.Alpine;
   if (lowWet > 0.6 && wet > 1.1 && slope < 0.02) return Biome.Wetland;
-  if (t < 3) return wet > 0.55 ? Biome.Taiga : Biome.Tundra;
+  if (t < 3) return wet > 0.3 ? Biome.Taiga : Biome.Tundra;
   if (t < 19) {
     if (wet < 0.15) return t < 11 ? Biome.ColdDesert : Biome.HotDesert;
     if (wet < 0.5) return Biome.Grassland;
@@ -198,7 +198,7 @@ export function surfaceColour(sp: SurfaceParams, out: Uint8Array, o: number): vo
   let wet = p / pet;
   wet += sp.riverProx * 0.9 * smoothstep(0.6, 0.1, wet); // riparian green belts in dry lands
   const veg = smoothstep(0.07, 0.55, wet);
-  let forest = smoothstep(0.55, 1.15, wet) * smoothstep(-5, 2, t);
+  let forest = smoothstep(0.35, 1.0, wet) * smoothstep(-12, -4, t);
   const sandMix = clamp(0.5 + sp.n2 * 0.9, 0, 1) * smoothstep(12, 24, t);
   let dry = mix3(C.sandCold, C.sandHot, smoothstep(4, 18, t));
   dry = mix3(dry, C.sandRed, sandMix * 0.55);
@@ -212,14 +212,14 @@ export function surfaceColour(sp: SurfaceParams, out: Uint8Array, o: number): vo
   c = mix3(c, forestC, forest * 0.92);
   if (sp.wetland > 0) c = mix3(c, C.wetland, sp.wetland * 0.7);
   // Treeline & alpine rock.
-  const alpine = smoothstep(1, -4, t);
+  const alpine = smoothstep(-7, -12, t);
   forest *= 1 - alpine;
   c = mix3(c, C.tundra, alpine * 0.7);
   const steep = smoothstep(0.1, 0.32, slope);
   forest *= 1 - steep * 0.8;
   c = mix3(c, sp.n1 > 0 ? C.rock : C.rockDark, Math.max(steep * 0.85, smoothstep(2800, 4200, elevM) * 0.6));
   // Permanent snow & glaciers.
-  const snow = smoothstep(-5, -10, t) + smoothstep(-2.5, -7, t) * smoothstep(0.02, 0.12, slope) * 0.5;
+  const snow = smoothstep(-13, -18, t) + smoothstep(-9, -14, t) * smoothstep(0.02, 0.12, slope) * 0.5;
   c = mix3(c, C.ice, clamp(snow, 0, 1));
   forest *= 1 - clamp(snow, 0, 1);
   // Beaches & salt flats.

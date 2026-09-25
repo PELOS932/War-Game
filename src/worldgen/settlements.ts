@@ -145,6 +145,14 @@ export function generateSettlements(
     });
   }
 
+  const net = buildRoadNetwork(grid, hex, owner, nations, cities);
+  const dep = placeDeposits(grid, hex, hexCity, rng);
+  return { population, cities, hexCity, ...net, ...dep };
+}
+
+export function buildRoadNetwork(grid: HexGrid, hex: HexLayer, owner: Uint16Array, nations: NationSeed[], cities: CitySeed[]) {
+  const n = grid.count;
+  const isLand = (i: number) => hex.terrain[i] > Terrain.Lake;
   // --- Roads and rail -----------------------------------------------------------
   const hexRoad = new Uint8Array(n);
   const hexRail = new Uint8Array(n);
@@ -225,6 +233,12 @@ export function generateSettlements(
     }
   }
 
+  return { roads, rails, hexRoad, hexRail };
+}
+
+export function placeDeposits(grid: HexGrid, hex: HexLayer, hexCity: Int32Array, rng: RNG) {
+  const n = grid.count;
+  const isLand = (i: number) => hex.terrain[i] > Terrain.Lake;
   // --- Mineral deposits ------------------------------------------------------------
   const deposit = new Uint8Array(n);
   const depositSize = new Float32Array(n);
@@ -258,7 +272,7 @@ export function generateSettlements(
     depositSize[i] = clamp(depositSize[i], 0, 2);
   }
 
-  return { population, cities, hexCity, roads, rails, hexRoad, hexRail, deposit, depositSize };
+  return { deposit, depositSize };
 }
 
 /** Prim's minimum spanning tree over cities by hex distance. */

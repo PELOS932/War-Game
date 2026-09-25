@@ -59,65 +59,8 @@ export function generateWorld(settings: WorldSettings, progress: Progress = () =
     }
   }
 
-  // 4. Climate.
-  progress('Simulating climate', 0);
-  latRange.north = settings.latNorth;
-  latRange.south = settings.latSouth;
-  const climate = simulateClimate(elevation, w, h, rng.fork(20));
-
-  // 5. Hydrology (modifies elevation: fills sinks and carves rivers).
-  progress('Carving rivers and lakes', 0);
-  const hydro = computeHydrology(elevation, climate.temperature, climate.precipitation, w, h, rng.fork(25));
-
-  // 6. Biomes & surface colour.
-  progress('Growing vegetation', 0);
-  const riverMask = new Float32Array(n);
-  for (let i = 0; i < n; i++) riverMask[i] = hydro.riverCell[i] ? 1 : 0;
-  const riverProx = blur(riverMask, w, h, 3, 3);
-  const biome = new Uint8Array(n);
-  const albedo = new Uint8Array(n * 4);
-  const climateTex = new Uint8Array(n * 4);
-  const cellM = HEIGHT_SPACING * KM_PER_UNIT * 1000;
-  const cn1 = new Noise2D(rng.fork(30)), cn2 = new Noise2D(rng.fork(31));
-  const sp: SurfaceParams = { t: 0, p: 0, elevM: 0, slope: 0, riverProx: 0, coastDist: 0, salt: false, n1: 0, n2: 0, wetland: 0 };
-  for (let y = 0; y < h; y++) {
-    if ((y & 63) === 0) progress('Growing vegetation', y / h);
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      const e = elevation[i];
-      const t = climate.temperature[i];
-      const p = climate.precipitation[i];
-      const xl = Math.max(0, x - 1), xr = Math.min(w - 1, x + 1);
-      const yu = Math.max(0, y - 1), yd = Math.min(h - 1, y + 1);
-      const gx = (elevation[y * w + xr] - elevation[y * w + xl]) / ((xr - xl) * cellM);
-      const gz = (elevation[yd * w + x] - elevation[yu * w + x]) / ((yd - yu) * cellM);
-      const slope = Math.sqrt(gx * gx + gz * gz) * ELEV_EXAGGERATION;
-      const rp = clamp(riverProx[i] * 2.2, 0, 1);
-      const lowWet = rp * smoothstep(400, 60, e);
-      const isLake = hydro.waterLevel[i] > -1e8;
-      if (e <= 0 || isLake) {
-        biome[i] = isLake ? Biome.Lake : Biome.Ocean;
-        albedo[i * 4] = 40; albedo[i * 4 + 1] = 70; albedo[i * 4 + 2] = 60; albedo[i * 4 + 3] = 0;
-      } else {
-        biome[i] = classifyBiome(t, p, e, slope, lowWet);
-        const x0 = x * HEIGHT_SPACING, z0 = y * HEIGHT_SPACING;
-        sp.t = t; sp.p = p; sp.elevM = e; sp.slope = slope; sp.riverProx = rp;
-        sp.coastDist = climate.oceanDist[i]; sp.salt = hydro.saltFlat[i] === 1;
-        sp.n1 = cn1.fbm(x0 / 6, z0 / 6, 4); sp.n2 = cn2.fbm(x0 / 25, z0 / 25, 3);
-        sp.wetland = biome[i] === Biome.Wetland ? 1 : 0;
-        surfaceColour(sp, albedo, i * 4);
-      }
-      climateTex[i * 4] = clamp(Math.round((t + 40) * 3.2), 0, 255);
-      climateTex[i * 4 + 1] = clamp(Math.round(p / 16), 0, 255);
-      climateTex[i * 4 + 2] = clamp(Math.round(climate.continentality[i] * 255), 0, 255);
-      climateTex[i * 4 + 3] = hydro.riverCell[i] ? 255 : Math.round(rp * 160);
-    }
-  }
-
-  // 7. Hex layer.
-  progress('Mapping terrain hexes', 0);
-  const hexLayer = deriveHexes(grid, w, h, elevation, hydro.waterLevel, climate.temperature, climate.precipitation,
-    biome, albedo, hydro.riverCell, hydro.accumulation);
+  const surf = buildSurface(settings, grid, w, h, elevation, rng, progress);
+  const { climate, hydro, biome, albedo, climateTex, hexLayer } = surf;
 
   // 8. Nations.
   progress('Founding nations', 0);
@@ -194,4 +137,72 @@ export function transferables(world: WorldData): ArrayBuffer[] {
   for (const l of world.lakes) list.push(l.cells.buffer as ArrayBuffer);
   for (const c of world.claims) list.push(c.buffer as ArrayBuffer);
   return [...new Set(list)];
+}
+
+/** Climate, hydrology, biomes, surface colours and the hex layer for a given elevation field. */
+export function buildSurface(settings: WorldSettings, grid: HexGrid, w: number, h: number, elevation: Float32Array, rng: RNG, progress: Progress,
+  adjustClimate?: (c: { temperature: Float32Array; precipitation: Float32Array }) => void) {
+  const n = w * h;
+  // 4. Climate.
+  progress('Simulating climate', 0);
+  latRange.north = settings.latNorth;
+  latRange.south = settings.latSouth;
+  const climate = simulateClimate(elevation, w, h, rng.fork(20));
+  adjustClimate?.(climate);
+
+  // 5. Hydrology (modifies elevation: fills sinks and carves rivers).
+  progress('Carving rivers and lakes', 0);
+  const hydro = computeHydrology(elevation, climate.temperature, climate.precipitation, w, h, rng.fork(25));
+
+  // 6. Biomes & surface colour.
+  progress('Growing vegetation', 0);
+  const riverMask = new Float32Array(n);
+  for (let i = 0; i < n; i++) riverMask[i] = hydro.riverCell[i] ? 1 : 0;
+  const riverProx = blur(riverMask, w, h, 3, 3);
+  const biome = new Uint8Array(n);
+  const albedo = new Uint8Array(n * 4);
+  const climateTex = new Uint8Array(n * 4);
+  const cellM = HEIGHT_SPACING * KM_PER_UNIT * 1000;
+  const cn1 = new Noise2D(rng.fork(30)), cn2 = new Noise2D(rng.fork(31));
+  const sp: SurfaceParams = { t: 0, p: 0, elevM: 0, slope: 0, riverProx: 0, coastDist: 0, salt: false, n1: 0, n2: 0, wetland: 0 };
+  for (let y = 0; y < h; y++) {
+    if ((y & 63) === 0) progress('Growing vegetation', y / h);
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const e = elevation[i];
+      const t = climate.temperature[i];
+      const p = climate.precipitation[i];
+      const xl = Math.max(0, x - 1), xr = Math.min(w - 1, x + 1);
+      const yu = Math.max(0, y - 1), yd = Math.min(h - 1, y + 1);
+      const gx = (elevation[y * w + xr] - elevation[y * w + xl]) / ((xr - xl) * cellM);
+      const gz = (elevation[yd * w + x] - elevation[yu * w + x]) / ((yd - yu) * cellM);
+      const slope = Math.sqrt(gx * gx + gz * gz) * ELEV_EXAGGERATION;
+      const rp = clamp(riverProx[i] * 2.2, 0, 1);
+      const lowWet = rp * smoothstep(400, 60, e);
+      const isLake = hydro.waterLevel[i] > -1e8;
+      if (e <= 0 || isLake) {
+        biome[i] = isLake ? Biome.Lake : Biome.Ocean;
+        albedo[i * 4] = 40; albedo[i * 4 + 1] = 70; albedo[i * 4 + 2] = 60; albedo[i * 4 + 3] = 0;
+      } else {
+        biome[i] = classifyBiome(t, p, e, slope, lowWet);
+        const x0 = x * HEIGHT_SPACING, z0 = y * HEIGHT_SPACING;
+        sp.t = t; sp.p = p; sp.elevM = e; sp.slope = slope; sp.riverProx = rp;
+        sp.coastDist = climate.oceanDist[i]; sp.salt = hydro.saltFlat[i] === 1;
+        sp.n1 = cn1.fbm(x0 / 6, z0 / 6, 4); sp.n2 = cn2.fbm(x0 / 25, z0 / 25, 3);
+        sp.wetland = biome[i] === Biome.Wetland ? 1 : 0;
+        surfaceColour(sp, albedo, i * 4);
+      }
+      climateTex[i * 4] = clamp(Math.round((t + 40) * 3.2), 0, 255);
+      climateTex[i * 4 + 1] = clamp(Math.round(p / 16), 0, 255);
+      climateTex[i * 4 + 2] = clamp(Math.round(climate.continentality[i] * 255), 0, 255);
+      climateTex[i * 4 + 3] = hydro.riverCell[i] ? 255 : Math.round(rp * 160);
+    }
+  }
+
+  // 7. Hex layer.
+  progress('Mapping terrain hexes', 0);
+  const hexLayer = deriveHexes(grid, w, h, elevation, hydro.waterLevel, climate.temperature, climate.precipitation,
+    biome, albedo, hydro.riverCell, hydro.accumulation);
+
+  return { climate, hydro, biome, albedo, climateTex, hexLayer };
 }
