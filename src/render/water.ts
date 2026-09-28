@@ -99,7 +99,7 @@ void main() {
   col += vec3(0.5, 0.6, 0.8) * pow(max(dot(R, moonDir), 0.0), 200.0) * 0.25 * night * wk;
 
   // ---- shoreline foam (thin band at the waterline) + fade where the heightmap says land.
-  float alpha = mix(0.35, 0.97, smoothstep(0.0, 14.0, depth));
+  float alpha = mix(uIsLake == 1 ? 0.8 : 0.35, 0.97, smoothstep(0.0, 14.0, depth));
   alpha *= smoothstep(-3.0, 0.5, depth);
   float fk = 1.0 - smoothstep(0.0015, 0.008, pix);
   if (fk > 0.0) {

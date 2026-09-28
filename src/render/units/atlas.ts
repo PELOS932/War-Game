@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { UnitCategory } from '../../sim/types';
 import { natoSymbol, type Affiliation } from '../../ui/icons';
-import { drawFlag } from '../../ui/flags';
+import { paintFlag } from './flagdraw';
 import type { FlagSpec } from '../../worldgen/types';
 
 /**
@@ -45,7 +45,7 @@ export class BadgeAtlas {
       c.rect(x + 1, y + 1, FLAG_W - 2, FLAG_H - 2);
       c.clip();
       try {
-        drawFlag(c, f, x + 1, y + 1, FLAG_W - 2, FLAG_H - 2);
+        paintFlag(c, f, x + 1, y + 1, FLAG_W - 2, FLAG_H - 2);
       } catch {
         c.fillStyle = '#888';
         c.fillRect(x, y, FLAG_W, FLAG_H);

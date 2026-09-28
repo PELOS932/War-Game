@@ -168,6 +168,15 @@ async function main(): Promise<void> {
     city(name: string) { return world.cities.find((c) => c.name === name); },
     bigCities(n = 10) { return [...world.cities].sort((a, b) => b.population - a.population).slice(0, n).map((c) => ({ name: c.name, x: c.x, z: c.z, pop: c.population, nation: c.nation })); },
     stats() { return { ...renderer.stats, terrain: renderer.terrain?.stats }; },
+    bench(n = 20) {
+      let cpu = 0, cpuMax = 0;
+      for (let i = 0; i < n; i++) {
+        renderer.render(1 / 60);
+        cpu += renderer.stats.cpuMs;
+        cpuMax = Math.max(cpuMax, renderer.stats.cpuMs);
+      }
+      return { cpuAvg: +(cpu / n).toFixed(2), cpuMax: +cpuMax.toFixed(2), calls: renderer.stats.drawCalls, tris: renderer.stats.triangles };
+    },
   };
 }
 

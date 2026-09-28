@@ -12,7 +12,7 @@ import { buildModel, Formation, formationFor, ModelKind } from './models';
 
 /** Badge size in CSS px (frame 52×32 + 8 px stem). */
 const BW = 52, BH = 40, STEM = 8;
-const MODEL_MAX_DIST = 95;
+const MODEL_MAX_DIST = 75;
 const CLUSTER_DIST = 75;
 
 interface Disp {
@@ -28,6 +28,7 @@ interface Disp {
   rx: number; rz: number; ry: number;
   sx: number; sy: number; onScreen: boolean;
   badge: boolean; bOffX: number; bOffY: number; bScale: number;
+  hx: number; hz: number; hsp: number; hSurf: number; hWater: number; hGround: number;
 }
 
 class Pool {
@@ -277,7 +278,7 @@ export class Units {
       tintAttribute: true,
       uniforms: { uUnitGlow: this.glow },
       fragDecl: 'uniform float uUnitGlow;',
-      afterLights: 'totalEmissiveRadiance += diffuseColor.rgb * uUnitGlow;',
+      afterLights: 'totalEmissiveRadiance += diffuseColor.rgb * (uUnitGlow + 0.55 * nightFactor(vWPos));',
     });
 
     // Counters.
@@ -442,6 +443,7 @@ export class Units {
           cat, cls: CATEGORY_CLASS[cat as UnitCategory], nation: u.nation, form: formationFor(cat, u.embarked),
           embarked: u.embarked, airborne: u.airborne, onCarrier: false, strength: u.strength, seen: frame, hex: u.hex,
           rx: u.x, rz: u.z, ry: 0, sx: 0, sy: 0, onScreen: false, badge: false, bOffX: 0, bOffY: 0, bScale: 1,
+          hx: NaN, hz: NaN, hsp: 0, hSurf: 0, hWater: -Infinity, hGround: 0,
         };
         this.disp.set(u.id, o);
       }
@@ -500,11 +502,16 @@ export class Units {
     // 3. Heights, screen projection.
     const W = this.canvas.clientWidth || 1, H = this.canvas.clientHeight || 1;
     this.lastW = W; this.lastH = H;
+    const sp = TerrainChunks.spacingForDistance(Math.max(d * 0.8, 0.1), split);
     for (const o of this.disp.values()) {
-      const sp = TerrainChunks.spacingForDistance(Math.max(d * 0.8, 0.1), split);
-      const ground = hf.heightAt(clamp(o.rx, 0, hf.worldW), clamp(o.rz, 0, hf.worldH), sp);
-      const water = hf.waterAt(o.rx, o.rz);
-      const surf = Math.max(ground, water);
+      // Cached ground sample (re-sampled when the unit moves or the LOD changes).
+      if (Math.abs(o.rx - o.hx) > s * 0.05 || Math.abs(o.rz - o.hz) > s * 0.05 || o.hsp !== sp) {
+        o.hx = o.rx; o.hz = o.rz; o.hsp = sp;
+        o.hGround = hf.heightAt(clamp(o.rx, 0, hf.worldW), clamp(o.rz, 0, hf.worldH), sp);
+        o.hWater = hf.waterAt(o.rx, o.rz);
+        o.hSurf = Math.max(o.hGround, o.hWater);
+      }
+      const ground = o.hGround, water = o.hWater, surf = o.hSurf;
       if (o.cls === UnitClass.Air && o.airborne) {
         o.ry = surf + clamp(s * 1.3, 0.06, 3.2) + (o.cat === UnitCategory.Helicopter ? -s * 0.5 : 0);
       } else if (o.cls === UnitClass.Naval || o.embarked) {
@@ -539,8 +546,7 @@ export class Units {
           const wx = o.rx + (lx * ch - lz * sh) * s;
           const wz = o.rz + (lx * sh + lz * ch) * s;
           let wy = o.ry;
-          if (!isAir && o.cls === UnitClass.Land && !o.embarked) {
-            const sp = TerrainChunks.spacingForDistance(Math.max(d * 0.8, 0.1), split);
+          if (!isAir && o.cls === UnitClass.Land && !o.embarked && d < 12) {
             wy = Math.max(hf.heightAt(wx, wz, sp), hf.waterAt(wx, wz));
           }
           this.q.setFromAxisAngle(this.up, -o.h + yaw);
@@ -556,7 +562,7 @@ export class Units {
             this.pool('rotor').push(this.m4, nc);
           }
           if (isAir && o.airborne) {
-            const gy = Math.max(hf.heightAt(wx, wz, 0.5), hf.waterAt(wx, wz));
+            const gy = o.hSurf;
             this.q.identity();
             this.m4.compose(this.v.set(wx, gy + 0.002, wz), this.q, this.sv.set(scale * 0.5, 1, scale * 0.5));
             this.shadowPool.push(this.m4, this.col.set(0xffffff));
@@ -600,9 +606,12 @@ export class Units {
     this.badgeMat.uniforms.uPx.value = dpr * gs;
     const groups = new Map<string, Disp[]>();
     const cluster = d > CLUSTER_DIST;
-    const cw = BW * gs * 0.95, ch = (BH - STEM) * gs * 0.9;
+    const spread = d > 300 ? 1.9 : d > 120 ? 1.35 : 1;
+    const cw = BW * gs * 0.95 * spread, ch = (BH - STEM) * gs * 0.9 * spread;
     for (const o of this.disp.values()) {
       if (!o.onScreen) continue;
+      // Whole-world view: only the player's forces and enemies at war with the player.
+      if (d > 300 && player >= 0 && o.nation !== player && this.affil[o.nation] !== 3 && !this.selected.has(o.id)) continue;
       let key: string;
       if (this.selected.has(o.id)) key = `s${o.id}`;
       else if (o.onCarrier) key = `h${o.hex}n`;

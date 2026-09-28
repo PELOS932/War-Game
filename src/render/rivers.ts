@@ -27,7 +27,7 @@ void main() {
   vec3 V = normalize(cameraPosition - wp);
   float t = uTime;
   float pix = length(fwidth(wp.xz));
-  float k = 1.0 - smoothstep(0.002, 0.02, pix);
+  float k = 1.0 - smoothstep(0.0008, 0.004, pix);
   vec2 g = vec2(0.0);
   if (k > 0.0) {
     float n1 = snoise(vec2(vDist * 40.0 - t * 1.4, vV * 1.5));
@@ -46,7 +46,7 @@ void main() {
   vec3 col = water * amb * (0.75 + 0.25 * max(dot(N, L), 0.0));
   col = mix(col, sky * amb, F * 0.8);
   vec3 R = reflect(-V, N);
-  col += sunTint(wp) * pow(max(dot(R, L), 0.0), 300.0) * 2.0 * day * k;
+  col += sunTint(wp) * pow(max(dot(R, L), 0.0), 400.0) * 0.8 * day * k;
   gl_FragColor = vec4(col, a);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

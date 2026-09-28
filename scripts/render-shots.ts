@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 
 interface Shot { name: string; expr: string; wait?: number; before?: string }
 
-const city = (name: string, d: number, yaw = 0, dz = 0) => `(() => { const c = __render.cityByName('${name}'); return [c.x, c.z + ${dz}, ${d}, ${yaw}, __render.dayHour(c.x)]; })()`;
+const city = (name: string, d: number, yaw = 0, dz = 0, hour?: number) => `(() => { const c = __render.cityByName('${name}'); return [c.x, c.z + ${dz}, ${d}, ${yaw}, ${hour === undefined ? '__render.dayHour(c.x)' : hour}]; })()`;
 const at = (lon: number, lat: number, d: number, yaw = 0) => `(() => { const p = __render.ll(${lon}, ${lat}); return [p[0], p[1], ${d}, ${yaw}, __render.dayHour(p[0])]; })()`;
 const PRESETS: Record<string, Shot> = {
   world: { name: 'world', expr: `(() => { const w = __render.renderer.ctx; return [w.worldW/2, w.worldH/2, 1e5, 0, __render.dayHour(w.worldW/2, 12)]; })()` },
@@ -21,6 +21,13 @@ const PRESETS: Record<string, Shot> = {
   nyc3: { name: 'nyc3', expr: city('New York', 3, 0.3) },
   nyc1: { name: 'nyc1', expr: city('New York', 1, 0.4) },
   nyc04: { name: 'nyc04', expr: city('New York', 0.4, 0.6) },
+  berlinStart28: { name: 'berlinStart28', expr: city('Berlin', 28, 0, 0, 0) },
+  berlinStart8: { name: 'berlinStart8', expr: city('Berlin', 8, 0.2, 0, 0) },
+  berlinStart2: { name: 'berlinStart2', expr: city('Berlin', 2, 0.3, 0.3, 0) },
+  berlinDay2: { name: 'berlinDay2', expr: city('Berlin', 2, 0.3, 0.3, 11) },
+  germany8: { name: 'germany8', expr: at(9.5, 50.5, 8, 0.1) },
+  nile12: { name: 'nile12', expr: at(31.2, 27.5, 12, 0) },
+  amazonRiver: { name: 'amazonRiver', expr: at(-58, -3, 20, 0) },
   chicago28: { name: 'chicago28', expr: city('Chicago', 28) },
   chicago8: { name: 'chicago8', expr: city('Chicago', 8, 0.2) },
   tokyo8: { name: 'tokyo8', expr: city('Tokyo', 8, 0.3) },
@@ -92,7 +99,7 @@ async function main(): Promise<void> {
     }
     await page.evaluate('window.__render.settle()');
     await page.evaluate(FRAMES(2));
-    const stats = await page.evaluate('JSON.stringify(window.__render.stats())');
+    const stats = await page.evaluate('JSON.stringify(window.__render.bench(8))');
     await page.screenshot({ path: `${out}/${s.name}.png`, timeout: 180000 });
     console.log(`${s.name}: ${JSON.stringify(res)} ${Date.now() - t1}ms ${stats}`);
   }

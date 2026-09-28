@@ -80,8 +80,10 @@ vec3 bEmis = vec3(0.0);
     // Vertical shading: slightly darker at street level (ambient occlusion).
     diffuseColor.rgb *= 0.72 + 0.28 * smoothstep(0.0, 0.25, vObj.y);
     float h = bhash(cell + vBase.xz * 997.0 + (sideX ? 13.7 : 0.0));
-    float lit = step(0.5, h) * (0.5 + 0.5 * bhash(cell * 1.37 + vBase.xz * 71.0));
-    bEmis = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.85, 1.0), step(0.85, h)) * lit * wv * 1.6;
+    float lit = step(0.62, h) * (0.5 + 0.5 * bhash(cell * 1.37 + vBase.xz * 71.0));
+    vec3 wc = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.85, 1.0), step(0.9, h));
+    // Sub-pixel windows average into a soft façade glow instead of noise.
+    bEmis = mix(vec3(1.0, 0.76, 0.5) * 0.09, wc * lit * win * 1.4, k);
   } else if (vNo.y > 0.9) {
     diffuseColor.rgb *= 0.62;
   }
@@ -402,6 +404,7 @@ export class Cities {
     this.farU.uFootMul.value = 1 + 0.8 * zf;
     this.farU.uFloorH.value = 0.012 * (1 + zf);
     this.updateLandmarks(d);
+    this.farGroup.visible = d < 170;
     const near = d < NEAR_D;
     this.nearGroup.visible = near;
     if (!near) {

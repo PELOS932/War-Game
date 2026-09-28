@@ -46,7 +46,7 @@ export function createSharedUniforms(s: WorldSettings) {
     uSunLon: { value: 0 },
     uSunDecl: { value: 0 },
     uDayNight: { value: 1 },
-    uNightAmbient: { value: new THREE.Vector3(0.2, 0.25, 0.42) },
+    uNightAmbient: { value: new THREE.Vector3(0.3, 0.36, 0.55) },
     uWorldSize: { value: new THREE.Vector2(worldWidth(s), worldHeight(s)) },
     uLatRange: { value: new THREE.Vector2(s.latNorth, s.latSouth) },
     uLonRange: { value: new THREE.Vector2(s.lonWest, s.lonEast) },
@@ -150,7 +150,7 @@ ${opts.fragDecl ?? ''}`,
 {
   float _day = daylightFactor(vWPos);
   vec3 _tint = sunTint(vWPos);
-  vec3 _moon = vec3(0.1, 0.13, 0.22) * uDayNight;
+  vec3 _moon = vec3(0.2, 0.24, 0.36) * uDayNight;
   reflectedLight.directDiffuse *= _day * _tint + (1.0 - _day) * _moon;
   reflectedLight.directSpecular *= _day * _tint;
   vec3 _amb = mix(uNightAmbient, vec3(1.0), _day);

@@ -75,8 +75,8 @@ export class Renderer implements MapRenderer {
   private cityUniforms: CityUniforms = createCityUniforms();
   private water: Water | null = null;
   private sky: Sky | null = null;
-  private rivers: Rivers | null = null;
-  private roads: Roads | null = null;
+  rivers: Rivers | null = null;
+  roads: Roads | null = null;
   vegetation: Vegetation | null = null;
   cities: Cities | null = null;
   units: Units | null = null;
@@ -321,8 +321,8 @@ export class Renderer implements MapRenderer {
     sh.uHorizonColor.value.copy(horizonDay);
     this.hemi.intensity = 1.0;
     // Night side stays readable when zoomed out (strategic view).
-    const nb = 1 + 1.3 * smoothstep(15, 250, this.cam.dist);
-    sh.uNightAmbient.value.set(0.2 * nb, 0.25 * nb, 0.42 * nb);
+    const nb = 1.35 + 0.7 * smoothstep(10, 250, this.cam.dist);
+    sh.uNightAmbient.value.set(0.3 * nb, 0.36 * nb, 0.55 * nb);
 
     // Shadows only when zoomed in.
     const useShadows = this.settings.shadows && this.settings.quality !== 'low' && this.cam.dist < 6;
@@ -354,7 +354,7 @@ export class Renderer implements MapRenderer {
     this.fog.color.copy(fogCol);
     this.fog.near = this.cam.dist * 1.25;
     this.fog.far = this.cam.dist * 8 + 2;
-    (this.scene.background as THREE.Color).copy(fogCol).multiplyScalar(0.4);
+    (this.scene.background as THREE.Color).setRGB(0.012, 0.02, 0.035);
 
     // Overlay & terrain.
     const ownersChanged = this.overlay!.update(dt);

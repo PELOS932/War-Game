@@ -109,8 +109,9 @@ export function buildRibbonGeometry(lines: RibbonLine[]): THREE.BufferGeometry |
       if (i < n - 1) {
         const a = v - 2;
         // a: left(i) a+1: right(i) a+2: left(i+1) a+3: right(i+1)
-        idx[k++] = a; idx[k++] = a + 2; idx[k++] = a + 1;
-        idx[k++] = a + 1; idx[k++] = a + 2; idx[k++] = a + 3;
+        // Counter-clockwise seen from above (+y).
+        idx[k++] = a; idx[k++] = a + 1; idx[k++] = a + 2;
+        idx[k++] = a + 1; idx[k++] = a + 3; idx[k++] = a + 2;
       }
     }
   }

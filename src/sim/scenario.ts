@@ -110,7 +110,7 @@ export function buildScenario(world: WorldData, playerNation: NationId, seed: nu
   }
 
   const state: GameState = {
-    world, grid, hour: 0, speed: 0, playerNation, nations, cities,
+    world, grid, hour: 12, speed: 0, playerNation, nations, cities,
     units: new Map(), facilities: new Map(), designs, techs, facilityDefs: FACILITY_DEFS,
     hexOwner: Uint16Array.from(world.hexOwner), hexCore: Uint16Array.from(world.hexOwner),
     hexControlChangedHour: new Float32Array(grid.count).fill(-1e6),

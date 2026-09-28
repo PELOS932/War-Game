@@ -267,8 +267,8 @@ if (cityD > 0.004) {
   mott = mix(mott, vec3(0.06, 0.09, 0.04), step(0.9, dist) * 0.7);
   mott = mix(mott, urbanAvg * 0.55, 1.0 - smoothstep(0.1, 0.18, min(fract(fq.x), fract(fq.y))));
   col = mix(col, mix(mott, uc, vis), wU);
-  tLights += vec3(1.0, 0.62, 0.3) * street * vis * wU * 0.9;
-  tLights += vec3(1.0, 0.8, 0.55) * (1.0 - street) * vis * wU * step(0.8, hashI(ivec2(floor(q / (BLOCK * 0.25))), 77u)) * 0.35 * cityD;
+  tLights += vec3(1.0, 0.62, 0.3) * street * vis * wU * 0.3 * (0.4 + 0.6 * cityD);
+  tLights += vec3(1.0, 0.8, 0.55) * (1.0 - street) * vis * wU * step(0.9, hashI(ivec2(floor(q / (BLOCK * 0.25))), 77u)) * 0.15 * cityD;
   urb = max(urb, cityD * (1.0 - vis * 0.6));
   tRough = mix(tRough, 0.75, wU);
 } else if (urb > 0.01) {
@@ -297,11 +297,16 @@ if (nearK > 0.0) {
   N = normalize(N + vec3(-(fx - f0) / e * amp, 0.0, -(fz - f0) / e * amp));
 }
 
-// ---- night lights.
+// ---- night lights: clustered glow far away, sparse points up close, none where
+// the detailed street grid provides its own lights.
 {
-  float sk = 1.0 - smoothstep(0.01, 0.05, pix);
-  float spark = mix(0.85, 0.4 + 1.2 * vnoise(wp.xz * 40.0, 5u) * (0.5 + vnoise(wp.xz * 7.0, 6u)), sk);
-  tLights += vec3(1.0, 0.66, 0.34) * pow(ld.a, 1.5) * spark * 1.4;
+  float sk = 1.0 - smoothstep(0.004, 0.04, pix);
+  float cl = smoothstep(0.35, 0.85, vnoise(wp.xz * 9.0, 6u)) * (0.4 + 0.9 * vnoise(wp.xz * 38.0, 5u));
+  vec2 lc = floor(wp.xz * 70.0);
+  float pts = step(0.965, hashI(ivec2(lc), 17u)) * (1.0 - smoothstep(0.1, 0.35, length(fract(wp.xz * 70.0) - 0.5)));
+  float spark = mix(0.45 + 0.6 * cl, pts * 1.6 + cl * 0.08, sk);
+  float la = pow(ld.a, 1.8) * spark * 0.6;
+  tLights += vec3(1.0, 0.66, 0.34) * la * (1.0 - clamp(cityD * 3.0, 0.0, 1.0) * sk);
 }
 
 // ---- political overlay, borders, grid, highlight.

@@ -350,7 +350,7 @@ vec3 applyOverlay(inout vec3 col, vec3 wp, float pix, bool water) {
   bool hexWater = it.b * 255.0 < 2.5;
   vec2 local = wp.xz - axialCenter(ax);
   float bw = max(pix * 1.3, 0.018);      // dark border line half-width (world units)
-  float glow = max(pix * 7.0, 0.12);     // inner colour glow width
+  float glow = max(pix * 6.0, mix(0.025, 0.12, smoothstep(2.0, 40.0, uCamDist)));     // inner colour glow width
   float border = 0.0;
   float borderGlow = 0.0;
   float edgeMin = 10.0;
@@ -397,7 +397,7 @@ vec3 applyOverlay(inout vec3 col, vec3 wp, float pix, bool water) {
   if (owner > 0 && !water) {
     // Borders: nation-coloured inner glow + dark crisp line.
     vec3 gc = uMapMode == 0 ? vec3(1.0, 0.92, 0.6) : pc;
-    col = mix(col, gc * 1.1, borderGlow * borderGlow * mix(0.35, 0.55, farT) * uOverlayAlpha);
+    col = mix(col, gc * 1.1, borderGlow * borderGlow * mix(0.25, 0.55, farT) * uOverlayAlpha);
     emis += gc * borderGlow * borderGlow * 0.05;
   }
   col = mix(col, vec3(0.02, 0.02, 0.03), border * 0.85 * uOverlayAlpha);

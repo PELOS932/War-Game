@@ -6,18 +6,10 @@
  *   flagDataURL(spec, w, h)          — cached PNG data URL (for <img>)
  */
 import type { FlagSpec } from '../worldgen/types';
+import { paintFlag } from '../render/units/flagdraw';
 
 export function drawFlag(ctx: CanvasRenderingContext2D, spec: FlagSpec, x: number, y: number, w: number, h: number): void {
-  const cols = spec.colors.length ? spec.colors : ['#888'];
-  const ratios = spec.ratios ?? cols.map(() => 1);
-  const total = ratios.reduce((a, b) => a + b, 0);
-  let acc = 0;
-  cols.forEach((c, i) => {
-    ctx.fillStyle = c;
-    if (spec.layout === 'vstripes') ctx.fillRect(x + (acc / total) * w, y, (ratios[i] / total) * w + 0.5, h);
-    else ctx.fillRect(x, y + (acc / total) * h, w, (ratios[i] / total) * h + 0.5);
-    acc += ratios[i];
-  });
+  paintFlag(ctx, spec, x, y, w, h);
 }
 
 export function flagCanvas(spec: FlagSpec, w: number, h: number): HTMLCanvasElement {

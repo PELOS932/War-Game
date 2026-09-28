@@ -5,7 +5,7 @@ import { LEAF_SPACING, TILE_SIZE, smoothstep } from './constants';
 import type { WorldContext } from './index';
 import type { CityInfo } from './landuse';
 import { patchStandard } from './lighting';
-import { cone, cyl, ico, merge, part, sphere } from './models/geom';
+import { merge, part } from './models/geom';
 import { cityDensity, hashI, mulberry, toGrid } from './procedural';
 import { BLOCK_SIZE } from './constants';
 
@@ -23,58 +23,57 @@ const MAX_DIST = 3.2;
 
 const TRUNK = 0x4a3526;
 
+// Open-ended low-poly primitives (no hidden caps) to keep forests cheap.
+const trunkG = (r0: number, r1: number, h: number) => new THREE.CylinderGeometry(r1, r0, h, 4, 1, true).translate(0, h / 2, 0);
+const coneG = (r: number, h: number, seg = 6) => new THREE.ConeGeometry(r, h, seg, 1, true).translate(0, h / 2, 0);
+const blobG = (r: number) => new THREE.IcosahedronGeometry(r, 0);
+
 function conifer(): THREE.BufferGeometry {
   return merge([
-    part(cyl(0.035, 0.05, 0.3, 5), TRUNK, {}),
-    part(cone(0.3, 0.5, 6), 0xffffff, { tint: 1, pos: [0, 0.18, 0] }),
-    part(cone(0.21, 0.45, 6), 0xffffff, { tint: 1, pos: [0, 0.48, 0], rot: [0, 0.5, 0] }),
+    part(trunkG(0.05, 0.035, 0.3), TRUNK, {}),
+    part(coneG(0.3, 0.52), 0xffffff, { tint: 1, pos: [0, 0.18, 0] }),
+    part(coneG(0.2, 0.45, 5), 0xffffff, { tint: 1, pos: [0, 0.5, 0], rot: [0, 0.5, 0] }),
   ]);
 }
 
 function broadleaf(): THREE.BufferGeometry {
   return merge([
-    part(cyl(0.04, 0.06, 0.42, 5), TRUNK, {}),
-    part(ico(0.3, 0), 0xffffff, { tint: 1, pos: [0, 0.62, 0], scale: [1, 0.85, 1] }),
-    part(ico(0.2, 0), 0xffffff, { tint: 1, pos: [0.14, 0.5, 0.1], rot: [0.5, 0.3, 0] }),
+    part(trunkG(0.06, 0.04, 0.42), TRUNK, {}),
+    part(blobG(0.32), 0xffffff, { tint: 1, pos: [0, 0.62, 0], scale: [1, 0.82, 1] }),
   ]);
 }
 
 function birch(): THREE.BufferGeometry {
   return merge([
-    part(cyl(0.03, 0.04, 0.55, 5), 0xd8d4c8, {}),
-    part(ico(0.2, 0), 0xffffff, { tint: 1, pos: [0, 0.72, 0], scale: [0.8, 1.3, 0.8] }),
+    part(trunkG(0.04, 0.03, 0.55), 0xd8d4c8, {}),
+    part(blobG(0.2), 0xffffff, { tint: 1, pos: [0, 0.72, 0], scale: [0.8, 1.3, 0.8] }),
   ]);
 }
 
 function palm(): THREE.BufferGeometry {
   const fronds: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
-    fronds.push(part(new THREE.BoxGeometry(0.42, 0.015, 0.09).translate(0.21, 0, 0), 0xffffff, {
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    fronds.push(part(new THREE.PlaneGeometry(0.42, 0.1).rotateX(-Math.PI / 2).translate(0.21, 0, 0), 0xffffff, {
       tint: 1, pos: [0.06, 0.86, 0], rot: [0, a, -0.35],
     }));
   }
   return merge([
-    part(cyl(0.025, 0.04, 0.45, 5), 0x7a6248, { rot: [0, 0, 0.06] }),
-    part(cyl(0.022, 0.026, 0.45, 5), 0x7a6248, { pos: [0.028, 0.44, 0], rot: [0, 0, 0.12] }),
-    part(sphere(0.05, 6, 4), 0x5a4a30, { pos: [0.06, 0.87, 0] }),
+    part(trunkG(0.04, 0.025, 0.88), 0x7a6248, { rot: [0, 0, 0.07] }),
     ...fronds,
   ]);
 }
 
 function acacia(): THREE.BufferGeometry {
   return merge([
-    part(cyl(0.025, 0.04, 0.5, 5), TRUNK, { rot: [0, 0, 0.1] }),
-    part(cyl(0.02, 0.02, 0.22, 4), TRUNK, { pos: [0.05, 0.4, 0], rot: [0, 0, -0.6] }),
-    part(cyl(0.44, 0.34, 0.1, 9), 0xffffff, { tint: 1, pos: [0.04, 0.52, 0] }),
-    part(cyl(0.3, 0.42, 0.06, 9), 0xffffff, { tint: 1, pos: [0.04, 0.6, 0] }),
+    part(trunkG(0.04, 0.025, 0.52), TRUNK, { rot: [0, 0, 0.1] }),
+    part(new THREE.CylinderGeometry(0.42, 0.3, 0.12, 7, 1, false).translate(0, 0.06, 0), 0xffffff, { tint: 1, pos: [0.04, 0.5, 0] }),
   ]);
 }
 
 function shrub(): THREE.BufferGeometry {
   return merge([
-    part(ico(0.26, 0), 0xffffff, { tint: 1, pos: [0, 0.16, 0], scale: [1, 0.7, 1] }),
-    part(ico(0.18, 0), 0xffffff, { tint: 1, pos: [0.16, 0.12, 0.08], scale: [1, 0.7, 1] }),
+    part(blobG(0.26), 0xffffff, { tint: 1, pos: [0, 0.16, 0], scale: [1, 0.7, 1] }),
   ]);
 }
 
@@ -119,7 +118,7 @@ export class Vegetation {
       key: 'trees',
       tintAttribute: true,
       uniforms: { uVeg: this.uVeg },
-      vertDecl: 'uniform vec3 uVeg;',
+      vertDecl: 'uniform vec3 uVeg; uniform float uTime;',
       afterBegin: /* glsl */ `
 {
 #ifdef USE_INSTANCING
@@ -228,7 +227,7 @@ export class Vegetation {
         const e = hf.elev[k];
         const tAnn = world.climateTex[k * 4] / 3.2 - 40;
         if (tAnn < -7 || e < 0.5) continue;
-        if (hf.waterAt(x, z) > -Infinity) continue;
+        if (hf.waterAt(x, z) > -Infinity || hf.riverAt(x, z) > 0.72) continue;
         const y = hf.heightAt(x, z, LEAF_SPACING);
         // Species by biome.
         const r = rand();
@@ -278,6 +277,8 @@ export class Vegetation {
       return true;
     }
     this.group.visible = true;
+    const castShadow = d < 1.3;
+    for (const m of this.meshes) m.castShadow = castShadow;
     const R = Math.min(3.4, d * 1.35 + 0.55);
     this.uVeg.value.set(cam.x, cam.z, R);
     const season = Math.floor(dayOfYear / 15);
@@ -315,7 +316,7 @@ export class Vegetation {
   }
 
   private rebuild(tiles: { t: Tile; dist: number }[], density: number): void {
-    const budget = Math.round(90000 * density);
+    const budget = Math.round(70000 * density);
     const v = new THREE.Vector3(), sc = new THREE.Vector3();
     const counts = new Array(NTYPES).fill(0);
     // Thin distant tiles (keep 1 in k) but enlarge the survivors.

@@ -43,7 +43,7 @@ void main() {
       col = mix(col, vec3(0.6, 0.58, 0.5), dash * detail);
       nightGlow = 1.0;
     }
-    if (detail < 1.0) col = mix(vKind > 0.5 ? vec3(0.1, 0.1, 0.1) : vec3(0.13, 0.12, 0.11), col, detail);
+    if (detail < 1.0) col = mix(vKind > 0.5 ? vec3(0.16, 0.15, 0.13) : vec3(0.19, 0.17, 0.14), col, detail);
   }
   float day = daylightFactor(vWPos);
   vec3 amb = mix(uNightAmbient * 0.5, vec3(1.0), day);
@@ -69,7 +69,7 @@ export class Roads {
         ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
         ...shared,
         uFade: { value: 1 },
-        uMinPx: { value: 1.2 },
+        uMinPx: { value: 1.6 },
         uBias: { value: 0.004 },
         uWidthScale: { value: 1 },
       },
