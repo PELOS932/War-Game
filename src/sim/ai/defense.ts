@@ -122,7 +122,7 @@ export function runDefenseBudget(ctx: AIContext, me: number, mem: NationMemory):
   const n = ctx.nation(me);
   const seed = ctx.state.world.nations[me];
   const base = Math.max(0.006, (seed?.defenseBudget ?? 2) / 100);
-  const fv = financeView(n);
+  const fv = financeView(n, ctx.state.hour);
   let target = base * (1 + 0.7 * mem.threat);
   if (mem.posture === 'prep') target = Math.max(target, base * 1.5);
   if (mem.posture === 'war') {
@@ -192,7 +192,7 @@ export function runProduction(ctx: AIContext, me: number, mem: NationMemory): vo
   const game = ctx.game;
   const n = ctx.nation(me);
   const seed = ctx.state.world.nations[me];
-  const fv = financeView(n);
+  const fv = financeView(n, ctx.state.hour);
   const hour = ctx.state.hour;
   const war = mem.posture === 'war';
   const prep = mem.posture === 'prep';

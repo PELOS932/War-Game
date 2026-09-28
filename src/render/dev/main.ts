@@ -5,6 +5,9 @@
  */
 import { DEFAULT_SETTINGS, generateWorld } from '../../worldgen/generate';
 import type { WorldData } from '../../worldgen/types';
+import type { GameAPI } from '../../sim/api';
+import { createGame } from '../../sim/game';
+import { loadWorld as loadEarthCached } from '../../app/worldLoader';
 import { MapMode } from '../api';
 import { createRenderer, Renderer } from '../index';
 import { MockGame } from './mock';
@@ -14,24 +17,10 @@ const hud = document.getElementById('hud')!;
 const loading = document.getElementById('loading')!;
 const panel = document.getElementById('panel')!;
 
-const earthModules = import.meta.glob('../../worldgen/earth/index.ts');
-
 async function makeWorld(progress: (s: string, f: number) => void): Promise<WorldData> {
-  const kind = params.get('world') ?? 'auto';
+  const kind = params.get('world') ?? 'earth';
   const seed = Number(params.get('seed') ?? 12345);
-  if (kind !== 'procedural') {
-    const loader = earthModules['../../worldgen/earth/index.ts'];
-    if (loader) {
-      const mod = (await loader()) as Record<string, unknown>;
-      const gen = mod.generateEarth as ((...a: unknown[]) => WorldData | Promise<WorldData>) | undefined;
-      if (gen) {
-        progress('Building Earth', 0);
-        return await gen(progress);
-      }
-    } else if (kind === 'earth') {
-      throw new Error('Earth builder not available yet');
-    }
-  }
+  if (kind === 'earth') return loadEarthCached(progress);
   return generateWorld({ seed, ...DEFAULT_SETTINGS }, progress);
 }
 
@@ -48,9 +37,17 @@ async function main(): Promise<void> {
   await renderer.loadWorld(world, setP);
   const tLoad = performance.now() - t1;
   const startHour = Number(params.get('hour') ?? 151 * 24 + 11);
-  let game: MockGame | null = null;
-  if (params.get('game') !== '0') {
-    game = new MockGame(world, { startHour, player: Number(params.get('player') ?? 0), unitsPerNation: Number(params.get('upn') ?? 1) });
+  let game: (GameAPI & { burst?: (x: number, z: number, n?: number) => void }) | null = null;
+  const gp = params.get('game') ?? 'real';
+  const pp = params.get('player') ?? 'USA';
+  const player = /^\d+$/.test(pp) ? Number(pp) : Math.max(0, world.nations.findIndex((n) => n.code === pp));
+  if (gp === 'mock') {
+    game = new MockGame(world, { startHour, player, unitsPerNation: Number(params.get('upn') ?? 1) });
+  } else if (gp === 'real') {
+    game = createGame(world, player);
+    game.state.hour = startHour;
+  }
+  if (game) {
     game.setSpeed(Number(params.get('speed') ?? 1));
     renderer.attachGame(game);
   } else {
@@ -147,7 +144,18 @@ async function main(): Promise<void> {
       return day * 24 + ((((localHour - lon / 15) % 24) + 24) % 24);
     },
     settle() { renderer.settle(); },
-    burst(x: number, z: number, n?: number) { game?.burst(x, z, n); },
+    burst(x: number, z: number, n?: number) {
+      if (game?.burst) { game.burst(x, z, n); return; }
+      const weapons = ['direct', 'artillery', 'missile', 'air', 'aa', 'naval'] as const;
+      const r = renderer as unknown as { onGameEventDebug?: (e: unknown) => void };
+      for (let i = 0; i < (n ?? 6); i++) {
+        const a = Math.random() * 6.28, rr = 0.4 + Math.random() * 1.5;
+        r.onGameEventDebug?.({ type: 'combat', attacker: -1, defender: -1, fromX: x + Math.cos(a) * rr, fromZ: z + Math.sin(a) * rr, toX: x + (Math.random() - 0.5) * 0.5, toZ: z + (Math.random() - 0.5) * 0.5, weapon: weapons[i % 6] });
+      }
+      r.onGameEventDebug?.({ type: 'unitDestroyed', unit: -1, nation: 0, x, z });
+    },
+    nation(code: string) { return world.nations.find((n) => n.code === code); },
+    cityByName(name: string) { return world.cities.find((c) => c.name === name); },
     city(name: string) { return world.cities.find((c) => c.name === name); },
     bigCities(n = 10) { return [...world.cities].sort((a, b) => b.population - a.population).slice(0, n).map((c) => ({ name: c.name, x: c.x, z: c.z, pop: c.population, nation: c.nation })); },
     stats() { return { ...renderer.stats, terrain: renderer.terrain?.stats }; },

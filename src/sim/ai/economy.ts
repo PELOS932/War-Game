@@ -10,10 +10,12 @@ import { Deposit, Terrain, isDemocratic } from '../../worldgen/types';
 import type { AIContext } from './context';
 import { remember, type NationMemory } from './memory';
 
-function sumRecord(r: Record<string, number> | undefined): number {
+/** Sum of a finance record, skipping transfers that do not touch the treasury. */
+function sumRecord(r: Record<string, number> | undefined, skipFund = false): number {
   if (!r) return 0;
   let s = 0;
   for (const k in r) {
+    if (skipFund && k.startsWith('Procurement (Military Fund)')) continue;
     const v = r[k];
     if (Number.isFinite(v)) s += v;
   }
@@ -21,18 +23,36 @@ function sumRecord(r: Record<string, number> | undefined): number {
 }
 
 export interface FinanceView {
-  income: number; // billions/day
-  expenses: number;
+  income: number; // billions/day (last day)
+  expenses: number; // billions/day (last day, treasury-paid only)
+  /** Smoothed daily balance (billions/day); lumpy one-offs are averaged out. */
   balance: number;
   reserveTarget: number;
   daysLeft: number; // days until treasury is empty at current balance (Infinity if surplus)
 }
 
-export function financeView(n: Nation): FinanceView {
+const balanceEma = new WeakMap<Nation, { day: number; v: number }>();
+
+/**
+ * Finance picture of a nation. The balance is an exponential average over
+ * ~10 days so that single procurement / import spikes do not trigger panic.
+ */
+export function financeView(n: Nation, hour = -1): FinanceView {
   const income = sumRecord(n.income);
-  const expenses = sumRecord(n.expenses);
-  const balance = income - expenses;
-  const reserveTarget = Math.max(n.gdp / 365 * 12, expenses * 40, 0.05);
+  const expenses = sumRecord(n.expenses, true);
+  const raw = income - expenses;
+  let e = balanceEma.get(n);
+  const day = hour >= 0 ? Math.floor(hour / 24) : -1;
+  if (!e) {
+    e = { day, v: raw };
+    balanceEma.set(n, e);
+  } else if (day >= 0 && day !== e.day) {
+    e.v = e.v * 0.9 + raw * 0.1;
+    e.day = day;
+  }
+  const balance = e.v;
+  // Cash reserve: ~12 days of GDP (≈3% of GDP, typical of real treasuries).
+  const reserveTarget = Math.max(n.gdp / 365 * 12, 0.05);
   const daysLeft = balance >= 0 ? Infinity : Math.max(0, n.treasury) / -balance;
   return { income, expenses, balance, reserveTarget, daysLeft };
 }
@@ -66,7 +86,7 @@ const startResearch = new WeakMap<Nation, number>();
 export function runFinance(ctx: AIContext, me: number, mem: NationMemory): void {
   const game = ctx.game;
   const n = ctx.nation(me);
-  const fv = financeView(n);
+  const fv = financeView(n, ctx.state.hour);
   const hour = ctx.state.hour;
   const demo = isDemocratic(n.government);
   const minApproval = demo ? 45 : 30;
@@ -87,7 +107,7 @@ export function runFinance(ctx: AIContext, me: number, mem: NationMemory): void 
   if (n.creditRating < 30) tolerated *= 0.5;
 
   // 1. Liquidity: keep a cash buffer so the state never defaults.
-  if (n.treasury < fv.reserveTarget * 0.3 && canBorrow) {
+  if (n.treasury < fv.reserveTarget * 0.35 && canBorrow) {
     const need = Math.max(fv.reserveTarget * 0.6 - n.treasury, fv.balance < 0 ? -fv.balance * 30 : 0);
     const amt = Math.min(need, (ceiling * 0.95 - debtRatio) * gdp, gdp * 0.05);
     if (amt > 0.01 && game.issueBonds(me, round3(amt)).ok) remember(mem, hour, 'finance', `issued ${amt.toFixed(2)}B bonds (treasury ${n.treasury.toFixed(2)}B, debt ${(debtRatio * 100).toFixed(0)}% GDP)`);
@@ -168,7 +188,7 @@ export function runTrade(ctx: AIContext, me: number, mem: NationMemory): void {
   const game = ctx.game;
   const n = ctx.nation(me);
   const hour = ctx.state.hour;
-  const fv = financeView(n);
+  const fv = financeView(n, ctx.state.hour);
   const threatened = ctx.atWarAny(me) || mem.posture === 'prep' || mem.threat > 0.5;
   const price = ctx.state.market.price;
   for (let r = 0; r < RESOURCE_COUNT; r++) {
@@ -356,7 +376,7 @@ export function runEconomy(ctx: AIContext, me: number, mem: NationMemory): void 
   const n = ctx.nation(me);
   const hour = ctx.state.hour;
   updateDeficits(n, mem);
-  const fv = financeView(n);
+  const fv = financeView(n, ctx.state.hour);
   if (hour - mem.lastBuildHour < 24 * 4) return;
   // Construction capacity scales with the economy.
   const maxParallel = n.gdp > 3000 ? 4 : n.gdp > 800 ? 3 : n.gdp > 150 ? 2 : 1;

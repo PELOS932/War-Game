@@ -5,6 +5,10 @@
  *
  *   npx tsx scripts/ai-test.ts [days=365] [--procedural] [--seed=N] [--quiet]
  */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import v8 from 'node:v8';
 import type { WorldData } from '../src/worldgen/types';
 import type { GameAPI } from '../src/sim/api';
 import type { GameEvent } from '../src/sim/types';
@@ -19,13 +23,27 @@ const seedArg = args.find((a) => a.startsWith('--seed='));
 const seed = seedArg ? Number(seedArg.slice(7)) : 7;
 const watch = (args.find((a) => a.startsWith('--watch=')) ?? '').slice(8).split(',').filter(Boolean);
 
+const cacheDir = process.env.AI_WORLD_CACHE ?? path.join(os.tmpdir(), 'war-game-ai');
 async function buildWorld(): Promise<WorldData> {
   if (!procedural) {
+    const file = path.join(cacheDir, 'earth.v8');
+    if (fs.existsSync(file) && !args.includes('--rebuild')) {
+      const t = Date.now();
+      const w = v8.deserialize(fs.readFileSync(file)) as WorldData;
+      console.log(`Earth world loaded from cache in ${((Date.now() - t) / 1000).toFixed(1)}s: ${w.nations.length} nations`);
+      return w;
+    }
     try {
       const m = await import('../src/worldgen/earth/index');
       const t = Date.now();
       const w = (m as { generateEarth: (p?: (s: string, f: number) => void) => WorldData }).generateEarth(() => {});
       console.log(`Earth world built in ${((Date.now() - t) / 1000).toFixed(1)}s: ${w.nations.length} nations, ${w.cities.length} cities`);
+      try {
+        fs.mkdirSync(cacheDir, { recursive: true });
+        fs.writeFileSync(file, v8.serialize(w));
+      } catch (err) {
+        console.warn('could not cache world:', (err as Error).message);
+      }
       return w;
     } catch (err) {
       console.warn('Earth builder unavailable, falling back to procedural world:', (err as Error).message);

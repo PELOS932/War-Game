@@ -140,7 +140,7 @@ function considerWar(ctx: AIContext, me: number, mem: NationMemory): void {
   let lastWar = -1e9;
   for (const h of mem.lastWarEnd.values()) lastWar = Math.max(lastWar, h);
   const cooldown = hour - lastWar < 24 * 365 ? 0.25 : 1;
-  const fv = financeView(n);
+  const fv = financeView(n, ctx.state.hour);
   if (n.treasury < fv.reserveTarget * 0.3 && fv.balance < 0) return;
 
   const cands = new Set<number>(ctx.terr.landNeighbours(me));
@@ -321,7 +321,7 @@ function manageRelations(ctx: AIContext, me: number, mem: NationMemory): void {
   const game = ctx.game;
   const hour = ctx.state.hour;
   const n = ctx.nation(me);
-  const fv = financeView(n);
+  const fv = financeView(n, ctx.state.hour);
   const myPower = ctx.totalPower(me);
   const list = partners(ctx, me, mem);
   // Rotate through partners: at most ~10 considered per week.

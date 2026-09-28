@@ -251,6 +251,11 @@ export class Renderer implements MapRenderer {
     this.unsub = game.on((e) => this.onGameEvent(e));
   }
 
+  /** Dev hook: inject a synthetic game event (effects testing). */
+  onGameEventDebug(e: GameEvent): void {
+    this.onGameEvent(e);
+  }
+
   private onGameEvent(e: GameEvent): void {
     this.effects?.onEvent(e, this.cam.dist);
     if (e.type === 'unitDestroyed') this.units?.onDestroyed(e.unit);
