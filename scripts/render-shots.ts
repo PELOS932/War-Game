@@ -11,29 +11,45 @@ import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 
 interface Shot { name: string; expr: string; wait?: number; before?: string }
 
+const city = (name: string, d: number, yaw = 0, dz = 0) => `(() => { const c = __render.cityByName('${name}'); return [c.x, c.z + ${dz}, ${d}, ${yaw}, __render.dayHour(c.x)]; })()`;
+const at = (lon: number, lat: number, d: number, yaw = 0) => `(() => { const p = __render.ll(${lon}, ${lat}); return [p[0], p[1], ${d}, ${yaw}, __render.dayHour(p[0])]; })()`;
 const PRESETS: Record<string, Shot> = {
   world: { name: 'world', expr: `(() => { const w = __render.renderer.ctx; return [w.worldW/2, w.worldH/2, 1e5, 0, __render.dayHour(w.worldW/2, 12)]; })()` },
-  continent: { name: 'continent', expr: `(() => { const c = __render.bigCities(1)[0]; return [c.x, c.z, 90, 0, __render.dayHour(c.x)]; })()` },
-  region: { name: 'region', expr: `(() => { const c = __render.bigCities(1)[0]; return [c.x, c.z, 22, 0, __render.dayHour(c.x)]; })()` },
-  mountains: { name: 'mountains', expr: `(() => { const w = __render.world; let best = 0, bi = 0; for (let i = 0; i < w.elevation.length; i += 7) if (w.elevation[i] > best) { best = w.elevation[i]; bi = i; } return [(bi % w.hw) * 0.5, Math.floor(bi / w.hw) * 0.5 + 1.5, 6, 0.3, __render.dayHour((bi % w.hw) * 0.5)]; })()` },
-  mountainsClose: { name: 'mountainsClose', expr: `(() => { const w = __render.world; let best = 0, bi = 0; for (let i = 0; i < w.elevation.length; i += 7) if (w.elevation[i] > best) { best = w.elevation[i]; bi = i; } return [(bi % w.hw) * 0.5, Math.floor(bi / w.hw) * 0.5 + 0.8, 1.6, 0.5, __render.dayHour((bi % w.hw) * 0.5)]; })()` },
-  city: { name: 'city', expr: `(() => { const c = __render.bigCities(1)[0]; return [c.x, c.z + 0.1, 0.6, 0.4, __render.dayHour(c.x)]; })()` },
-  cityClose: { name: 'cityClose', expr: `(() => { const c = __render.bigCities(1)[0]; return [c.x, c.z, 0.2, 0.7, __render.dayHour(c.x)]; })()` },
-  cityMid: { name: 'cityMid', expr: `(() => { const c = __render.bigCities(4)[3]; return [c.x, c.z, 2.2, 0.2, __render.dayHour(c.x)]; })()` },
+  europe: { name: 'europe', expr: at(10, 49, 90) },
+  usa28: { name: 'usa28', expr: city('Washington', 28) },
+  usa8: { name: 'usa8', expr: city('Washington', 8, 0.2) },
+  nyc3: { name: 'nyc3', expr: city('New York', 3, 0.3) },
+  nyc1: { name: 'nyc1', expr: city('New York', 1, 0.4) },
+  nyc04: { name: 'nyc04', expr: city('New York', 0.4, 0.6) },
+  chicago28: { name: 'chicago28', expr: city('Chicago', 28) },
+  chicago8: { name: 'chicago8', expr: city('Chicago', 8, 0.2) },
+  tokyo8: { name: 'tokyo8', expr: city('Tokyo', 8, 0.3) },
+  paris28: { name: 'paris28', expr: city('Paris', 28) },
+  paris6: { name: 'paris6', expr: city('Paris', 6, 0.2) },
+  tokyo2: { name: 'tokyo2', expr: city('Tokyo', 2, 0.5) },
+  himalaya: { name: 'himalaya', expr: at(86.9, 27.6, 7, 0.2) },
+  himalayaClose: { name: 'himalayaClose', expr: at(86.9, 27.7, 1.6, 0.4) },
+  alps: { name: 'alps', expr: at(9.5, 46.3, 3, 0.3) },
   terminator: { name: 'terminator', expr: `(() => { const w = __render.renderer.ctx; return [w.worldW/2, w.worldH/2, 1e5, 0, 151*24 + 18]; })()` },
-  night: { name: 'night', expr: `(() => { const c = __render.bigCities(1)[0]; return [c.x, c.z, 60, 0, 151*24 + 23 - Math.round((c.x / __render.renderer.ctx.worldW * 360 - 180) / 15)]; })()` },
-  units: { name: 'units', expr: `(() => { const g = __render.game; const u = [...g.state.units.values()].find(u => u.design === 'cat2'); return [u.x, u.z, 3, 0.2, __render.dayHour(u.x)]; })()` },
-  unitsClose: { name: 'unitsClose', expr: `(() => { const g = __render.game; const u = [...g.state.units.values()].find(u => u.design === 'cat2'); return [u.x, u.z, 0.5, 0.4, __render.dayHour(u.x)]; })()` },
-  front: { name: 'front', before: `(() => { const g = __render.game; const f = g.fronts?.[0]; })()`, expr: `(() => { const g = __render.game; const us = [...g.state.units.values()].filter(u => g.motion.get(u.id)?.mode === 'static'); const u = us[0]; __render.burst(u.x, u.z, 8); return [u.x, u.z, 2.5, 0.3, __render.dayHour(u.x)]; })()`, wait: 1500 },
-  forest: { name: 'forest', expr: `(() => { const w = __render.world; let bi = 0; for (let i = 0; i < w.albedo.length / 4; i += 13) { if (w.albedo[i*4+3] > 230 && w.elevation[i] > 200) { bi = i; break; } } return [(bi % w.hw) * 0.5, Math.floor(bi / w.hw) * 0.5, 0.35, 0.3, __render.dayHour((bi % w.hw) * 0.5)]; })()` },
-  coast: { name: 'coast', expr: `(() => { const c = __render.world.cities.filter(c => c.port).sort((a,b)=>b.population-a.population)[0]; return [c.x, c.z, 1.2, 0.2, __render.dayHour(c.x)]; })()` },
+  nightEurope: { name: 'nightEurope', expr: `(() => { const p = __render.ll(10, 49); return [p[0], p[1], 60, 0, __render.dayHour(p[0], 23)]; })()` },
+  units: { name: 'units', expr: `(() => { const g = __render.game; const u = [...g.state.units.values()].find(u => u.nation === g.state.playerNation && g.state.designs.get(u.design).category === 2); return [u.x, u.z, 12, 0.2, __render.dayHour(u.x)]; })()` },
+  unitsClose: { name: 'unitsClose', expr: `(() => { const g = __render.game; const u = [...g.state.units.values()].find(u => u.nation === g.state.playerNation && g.state.designs.get(u.design).category === 2); return [u.x, u.z, 3, 0.3, __render.dayHour(u.x)]; })()` },
+  fleet: { name: 'fleet', expr: `(() => { const g = __render.game; const u = [...g.state.units.values()].find(u => u.nation === g.state.playerNation && g.state.designs.get(u.design).category === 21); return [u.x, u.z, 4, 0.3, __render.dayHour(u.x)]; })()` },
+  front: { name: 'front', expr: `(() => { const p = __render.ll(37.5, 48.5); __render.burst(p[0], p[1], 10); return [p[0], p[1], 3, 0.3, __render.dayHour(p[0])]; })()`, wait: 1200 },
+  forest: { name: 'forest', expr: at(-122.2, 46.6, 0.8, 0.3) },
+  forestMid: { name: 'forestMid', expr: at(-122.2, 46.6, 2.5, 0.3) },
+  taiga: { name: 'taiga', expr: at(95, 60, 1.0, 0.3) },
+  amazon: { name: 'amazon', expr: at(-62, -4, 1.0, 0.3) },
+  savanna: { name: 'savanna', expr: at(35, -2.5, 1.0, 0.3) },
+  coast: { name: 'coast', expr: at(-9.2, 38.7, 1.5, 0.2) },
 };
+
 
 const FRAMES = (k: number) => `new Promise((resolve) => { let n = 0; const f = () => { if (++n >= ${k}) resolve(); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  let params = 'world=procedural&seed=12345';
+  let params = 'world=earth&game=real&player=USA';
   let out = '/tmp/claude-0/render';
   let spec = 'world,continent,mountains,city';
   let width = 1280, height = 720;
@@ -48,11 +64,13 @@ async function main(): Promise<void> {
   if (existsSync(spec) && spec.endsWith('.json')) shots = JSON.parse(readFileSync(spec, 'utf8'));
   else shots = spec.split(',').map((s) => { const p = PRESETS[s]; if (!p) throw new Error(`unknown preset ${s}`); return p; });
 
-  const browser = await chromium.launch({
+  // Persistent profile so the Earth world stays cached in IndexedDB between runs.
+  const browser = await chromium.launchPersistentContext('/tmp/claude-0/render/profile', {
     executablePath: '/opt/pw-browsers/chromium',
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+    viewport: { width, height },
   });
-  const page = await browser.newPage({ viewport: { width, height } });
+  const page = await browser.newPage();
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(`[page ${m.type()}]`, m.text().slice(0, 400)); });
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));
   const url = `http://localhost:5174/dev/render.html?${params}`;
@@ -75,7 +93,7 @@ async function main(): Promise<void> {
     await page.evaluate('window.__render.settle()');
     await page.evaluate(FRAMES(2));
     const stats = await page.evaluate('JSON.stringify(window.__render.stats())');
-    await page.screenshot({ path: `${out}/${s.name}.png` });
+    await page.screenshot({ path: `${out}/${s.name}.png`, timeout: 180000 });
     console.log(`${s.name}: ${JSON.stringify(res)} ${Date.now() - t1}ms ${stats}`);
   }
   await browser.close();

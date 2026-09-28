@@ -402,7 +402,7 @@ vec3 applyOverlay(inout vec3 col, vec3 wp, float pix, bool water) {
   }
   col = mix(col, vec3(0.02, 0.02, 0.03), border * 0.85 * uOverlayAlpha);
   // Hex grid (zoomed in).
-  float gridA = uHexGridOn * (1.0 - smoothstep(6.0, 22.0, uCamDist)) * (water ? 0.16 : 0.2);
+  float gridA = uHexGridOn * (1.0 - smoothstep(4.0, water ? 12.0 : 18.0, uCamDist)) * (water ? 0.05 : 0.1);
   if (gridA > 0.0) {
     float gl = 1.0 - smoothstep(pix * 0.5, pix * 1.5 + 0.004, edgeMin);
     col = mix(col, water ? vec3(0.6, 0.75, 0.85) : vec3(0.05), gl * gridA);

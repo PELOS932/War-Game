@@ -54,13 +54,13 @@ void main() {
   float wk = 1.0 - smoothstep(0.002, 0.01, pix);
   float mk = 1.0 - smoothstep(0.012, 0.05, pix);
   vec2 g = vec2(0.0);
-  if (mk > 0.0) g += noiseGrad(wp.xz * 5.0 + vec2(t * 0.03, t * 0.02)) * 0.012 * mk;
+  if (mk > 0.0) g += noiseGrad(wp.xz * 5.0 + vec2(t * 0.03, t * 0.02)) * 0.007 * mk;
   if (wk > 0.0) {
     g += noiseGrad(wp.xz * 60.0 + vec2(t * 0.45, t * 0.25)) * 0.0022 * wk;
     g += noiseGrad(wp.xz * 150.0 + vec2(-t * 0.6, t * 0.5)) * 0.0011 * wk;
   }
   float calm = uIsLake == 1 ? 0.5 : 1.0;
-  N = normalize(vec3(-g.x * calm * 6.0, 1.0, -g.y * calm * 6.0));
+  N = normalize(vec3(-g.x * calm * 3.5, 1.0, -g.y * calm * 3.5));
 
   // ---- body colour by depth.
   float d1 = smoothstep(0.0, 45.0, depth), d2 = smoothstep(35.0, 3200.0, depth);
@@ -91,21 +91,23 @@ void main() {
   vec3 amb = mix(uNightAmbient * 0.25, vec3(1.0), day);
   vec3 col = wc * diffuse * amb * mix(vec3(1.0), tint, 0.4) * (1.0 - cs * 0.6);
   col = mix(col, skyC * (1.0 - cs * 0.5), clamp(F, 0.0, 1.0) * 0.9);
-  float shin = mix(40.0, 700.0, wk);
-  float spec = pow(max(dot(R, L), 0.0), shin) * mix(0.35, 4.0, wk);
+  float shin = mix(60.0, 900.0, wk);
+  float spec = pow(max(dot(R, L), 0.0), shin) * mix(0.3, 1.5, wk);
   col += tint * spec * day * (1.0 - cs);
   // Moon glint on the night side.
   vec3 moonDir = normalize(vec3(-L.x, 0.6, -L.z));
   col += vec3(0.5, 0.6, 0.8) * pow(max(dot(R, moonDir), 0.0), 200.0) * 0.25 * night * wk;
 
-  // ---- shoreline foam.
-  float alpha = mix(0.3, 0.97, smoothstep(0.0, 14.0, depth));
-  if (wk > 0.0) {
-    float band = sin(depth * 1.6 - t * 1.4 + snoise(wp.xz * 70.0) * 2.5) * 0.5 + 0.5;
-    float foam = (1.0 - smoothstep(0.0, 3.5, depth)) * smoothstep(0.35, 0.9, band) * wk;
-    foam += (1.0 - smoothstep(0.0, 0.8, depth)) * 0.6 * wk;
-    col = mix(col, vec3(0.85) * amb, clamp(foam, 0.0, 1.0) * 0.8);
-    alpha = max(alpha, foam * 0.9);
+  // ---- shoreline foam (thin band at the waterline) + fade where the heightmap says land.
+  float alpha = mix(0.35, 0.97, smoothstep(0.0, 14.0, depth));
+  alpha *= smoothstep(-3.0, 0.5, depth);
+  float fk = 1.0 - smoothstep(0.0015, 0.008, pix);
+  if (fk > 0.0) {
+    float band = sin(depth * 2.2 - t * 1.3 + snoise(wp.xz * 60.0) * 2.0) * 0.5 + 0.5;
+    float shore = (1.0 - smoothstep(0.0, 1.6, depth)) * smoothstep(-1.5, 0.0, depth);
+    float foam = shore * (0.35 + 0.65 * smoothstep(0.55, 0.95, band)) * fk;
+    col = mix(col, vec3(0.8) * amb, clamp(foam, 0.0, 1.0) * 0.7);
+    alpha = max(alpha, foam * 0.8);
   }
 
   // ---- seasonal sea ice.
@@ -225,7 +227,7 @@ function buildLakeGeometry(world: WorldData): THREE.BufferGeometry | null {
   const owner = new Int32Array(w * h).fill(-1);
   world.lakes.forEach((l, li) => { for (const c of l.cells) owner[c] = li; });
   // Dilate twice so the lake plane runs under the shore.
-  for (let pass = 0; pass < 2; pass++) {
+  for (let pass = 0; pass < 4; pass++) {
     const add: [number, number][] = [];
     for (let j = 0; j < h; j++) {
       for (let i = 0; i < w; i++) {

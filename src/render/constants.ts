@@ -15,11 +15,11 @@ export const CHUNK_RES = 32;
 export const LEAF_SPACING = ROOT_CHUNK / (1 << MAX_LOD) / CHUNK_RES;
 
 /** Camera distance limits (world units along the view ray). */
-export const MIN_DIST = 0.14;
+export const MIN_DIST = 0.3;
 
 /** Street-grid block size in world units (cities & ground shader must agree). */
-export const BLOCK_SIZE = 0.016;
-export const STREET_WIDTH = 0.0026;
+export const BLOCK_SIZE = 0.03;
+export const STREET_WIDTH = 0.0045;
 
 /** Size of vegetation / city tiles (world units). */
 export const TILE_SIZE = 0.5;

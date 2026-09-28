@@ -30,7 +30,7 @@ export function vnoise(x: number, y: number, seed: number): number {
 
 /** Radius (world units) of the built-up area of a city of `popK` thousand people. */
 export function cityRadius(popK: number): number {
-  return clamp(0.065 + 0.21 * Math.sqrt(Math.max(0, popK) / 1000), 0.065, 1.6);
+  return clamp(0.09 + 0.29 * Math.sqrt(Math.max(0, popK) / 1000), 0.09, 2.0);
 }
 
 /**

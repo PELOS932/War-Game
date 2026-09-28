@@ -177,7 +177,7 @@ export class Renderer implements MapRenderer {
     const shared = createSharedUniforms(s);
     p('Uploading textures', 0.3);
     await yieldFrame();
-    const tex = createWorldTextures(world, landuse);
+    const tex = createWorldTextures(world, landuse, hf.elev);
     this.ctx = { world, grid, hf, shared, landuse, cities, tex, worldW, worldH };
     this.cam.setWorld(worldW, worldH);
     this.cam.heightAt = (x, z, d) => this.surfaceForCamera(x, z, d);
@@ -397,14 +397,14 @@ export class Renderer implements MapRenderer {
   private updateCityUniforms(): void {
     const ctx = this.ctx!;
     const u = this.cityUniforms;
-    if (this.cam.dist > 9) {
+    if (this.cam.dist > 70) {
       u.uCityCount.value = 0;
       return;
     }
     const key = Math.round(this.cam.x * 4) * 100000 + Math.round(this.cam.z * 4) + Math.round(this.cam.dist) * 1e9;
     if (key === this.lastCitySelect) return;
     this.lastCitySelect = key;
-    const range = this.cam.dist * 3 + 1.5;
+    const range = this.cam.dist * 1.6 + 1.5;
     const cand: { c: CityInfo; d: number }[] = [];
     for (const c of ctx.cities) {
       const d = Math.hypot(c.x - this.cam.x, c.z - this.cam.z) - c.r * 1.6;

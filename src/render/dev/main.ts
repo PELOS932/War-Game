@@ -12,6 +12,10 @@ import { MapMode } from '../api';
 import { createRenderer, Renderer } from '../index';
 import { MockGame } from './mock';
 
+// The Earth builder may read process.env tuning knobs; shim it in the browser.
+const g = globalThis as unknown as { process?: { env: Record<string, string> } };
+if (!g.process) g.process = { env: {} };
+
 const params = new URLSearchParams(location.search);
 const hud = document.getElementById('hud')!;
 const loading = document.getElementById('loading')!;
@@ -153,6 +157,11 @@ async function main(): Promise<void> {
         r.onGameEventDebug?.({ type: 'combat', attacker: -1, defender: -1, fromX: x + Math.cos(a) * rr, fromZ: z + Math.sin(a) * rr, toX: x + (Math.random() - 0.5) * 0.5, toZ: z + (Math.random() - 0.5) * 0.5, weapon: weapons[i % 6] });
       }
       r.onGameEventDebug?.({ type: 'unitDestroyed', unit: -1, nation: 0, x, z });
+    },
+    ll(lon: number, lat: number) {
+      const st = world.settings;
+      const W = renderer.ctx!.worldW, H = renderer.ctx!.worldH;
+      return [((lon - st.lonWest) / (st.lonEast - st.lonWest)) * W, ((st.latNorth - lat) / (st.latNorth - st.latSouth)) * H];
     },
     nation(code: string) { return world.nations.find((n) => n.code === code); },
     cityByName(name: string) { return world.cities.find((c) => c.name === name); },

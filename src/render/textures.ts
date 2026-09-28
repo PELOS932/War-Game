@@ -13,11 +13,11 @@ export interface WorldTextures {
   land: THREE.DataTexture;
 }
 
-export function createWorldTextures(world: WorldData, lu: LandUse): WorldTextures {
+export function createWorldTextures(world: WorldData, lu: LandUse, elevation: Float32Array = world.elevation): WorldTextures {
   const w = world.hw, h = world.hh, n = w * h;
 
   const hdata = new Uint16Array(n);
-  for (let i = 0; i < n; i++) hdata[i] = THREE.DataUtils.toHalfFloat(world.elevation[i]);
+  for (let i = 0; i < n; i++) hdata[i] = THREE.DataUtils.toHalfFloat(elevation[i]);
   const height = new THREE.DataTexture(hdata, w, h, THREE.RedFormat, THREE.HalfFloatType);
   height.magFilter = THREE.LinearFilter;
   height.minFilter = THREE.LinearFilter;

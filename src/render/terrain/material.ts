@@ -164,7 +164,7 @@ if (forest > 0.04 && midK > 0.0) {
 
 // ---- farmland patchwork.
 float farmW = ld.g * (1.0 - smoothstep(0.35, 0.8, forest));
-if (farmW > 0.02 && midK > 0.0) {
+if (farmW > 0.02) {
   float ang = snoise(wp.xz * 0.21) * 1.3 + 0.5;
   float ca = cos(ang), sa = sin(ang);
   vec2 q = vec2(ca * wp.x + sa * wp.z, -sa * wp.x + ca * wp.z);
@@ -198,8 +198,11 @@ if (farmW > 0.02 && midK > 0.0) {
   float hedge = 1.0 - smoothstep(0.00025, 0.0007 + pix * 0.7, edge);
   fc = mix(fc, col * 0.55, hedge * 0.55);
   float vis = 1.0 - smoothstep(0.003, 0.012, pix);
-  vec3 avgF = mix(col, (green + gold + pale) / 3.0 * 1.1, 0.25);
-  col = mix(col, mix(avgF, fc, vis), farmW * midK * 0.9);
+  // Regional field tone by season: green in the growing season, golden at harvest, brown in winter.
+  vec3 seasonF = abs(lat) < 22.0 ? mix(green * 1.3, gold, 0.3)
+    : mix(mix(brown * 1.2, green * 1.35, smoothstep(-0.6, 0.2, summer)), gold, smoothstep(0.55, 0.95, summer) * 0.5);
+  vec3 avgF = mix(col, seasonF, 0.45);
+  col = mix(col, mix(avgF, fc, vis), farmW * 0.9);
 }
 
 // ---- rock on steep slopes and high barren ground.
@@ -256,8 +259,14 @@ if (cityD > 0.004) {
   else if (cityD < 0.45) lot = mix(lot, col * 0.8, 0.45);
   vec3 uc = mix(lot, vec3(0.045, 0.045, 0.05), street);
   float vis = 1.0 - smoothstep(BLOCK * 0.15, BLOCK * 0.5, pix);
-  float wU = smoothstep(0.02, 0.2, cityD);
-  col = mix(col, mix(urbanAvg, uc, vis), wU);
+  float wU = smoothstep(0.02, 0.2, cityD) * smoothstep(-0.5, 1.5, altM);
+  // Mid-range: mottled built-up texture (district blocks, parks) instead of flat grey.
+  vec2 fq = q / (BLOCK * 3.0);
+  float dist = hashI(ivec2(floor(fq)), uint(cseed) + 55u);
+  vec3 mott = urbanAvg * (0.72 + 0.55 * dist) * (0.9 + 0.2 * vnoise(q * 90.0, 3u));
+  mott = mix(mott, vec3(0.06, 0.09, 0.04), step(0.9, dist) * 0.7);
+  mott = mix(mott, urbanAvg * 0.55, 1.0 - smoothstep(0.1, 0.18, min(fract(fq.x), fract(fq.y))));
+  col = mix(col, mix(mott, uc, vis), wU);
   tLights += vec3(1.0, 0.62, 0.3) * street * vis * wU * 0.9;
   tLights += vec3(1.0, 0.8, 0.55) * (1.0 - street) * vis * wU * step(0.8, hashI(ivec2(floor(q / (BLOCK * 0.25))), 77u)) * 0.35 * cityD;
   urb = max(urb, cityD * (1.0 - vis * 0.6));

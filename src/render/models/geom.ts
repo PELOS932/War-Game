@@ -84,6 +84,16 @@ export function extrudeXZ(pts: [number, number][], h: number): THREE.BufferGeome
   return g;
 }
 
+/** Side profile in the xy plane (x forward, y up) extruded along z (centred), width `depth`. */
+export function extrudeXY(pts: [number, number][], depth: number): THREE.BufferGeometry {
+  const s = new THREE.Shape();
+  s.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false });
+  g.translate(0, 0, -depth / 2);
+  return g;
+}
+
 /** A simple hull shape for ships: pointed bow at +x. */
 export function hull(len: number, beam: number, height: number, bowFrac = 0.28, sternFrac = 0.06): THREE.BufferGeometry {
   const L = len / 2, B = beam / 2;

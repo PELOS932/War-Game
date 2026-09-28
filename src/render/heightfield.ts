@@ -42,9 +42,9 @@ export class HeightField {
     this.h = world.hh;
     this.worldW = worldWidth(world.settings);
     this.worldH = worldHeight(world.settings);
-    this.elev = world.elevation;
     this.water = world.waterLevel;
     const n = this.w * this.h;
+    this.elev = raiseLakeShores(world.elevation, world.waterLevel, world.biome, this.w, this.h);
     this.ocean = new Uint8Array(n);
     this.river = new Float32Array(n);
     let maxE = 0, minLand = 0;
@@ -109,7 +109,11 @@ export class HeightField {
         const row = el[o] * wx0 + el[o + 1] * wx1 + el[o + 2] * wx2 + el[o + 3] * wx3;
         result += row * cubicWeight(j - fz);
       }
-      return result;
+      // Clamp Catmull-Rom overshoot to the surrounding cell range (keeps coastlines honest).
+      const c = iz * w + ix;
+      const a = el[c], b = el[c + 1], cc = el[c + w], d = el[c + w + 1];
+      const lo = Math.min(a, b, cc, d), hi = Math.max(a, b, cc, d);
+      return result < lo ? lo : result > hi ? hi : result;
     }
     for (let j = -1; j <= 2; j++) {
       const row = this.cell(ix - 1, iz + j) * wx0 + this.cell(ix, iz + j) * wx1 + this.cell(ix + 1, iz + j) * wx2 + this.cell(ix + 2, iz + j) * wx3;
@@ -179,7 +183,7 @@ export class HeightField {
     const damp = this.bilinear(this.damp, x, z) * coast;
     if (damp <= 0.001) return 0;
     const m = this.bilinear(this.rough, x, z);
-    const amp = (16 + 520 * m * m + 120 * m) * damp;
+    const amp = (12 + 150 * m + 170 * m * m) * damp;
     let sum = 0;
     let a = 1;
     let lambda = DETAIL_BASE_WAVELENGTH;
@@ -190,7 +194,7 @@ export class HeightField {
       const f = 1 / lambda;
       const nv = this.noise.noise(x * f + k * 17.31, z * f - k * 9.17);
       let r = 1 - Math.abs(nv);
-      r = r * r * 2 - 0.72;
+      r = r * r * 1.6 - 0.58;
       sum += (nv + (r - nv) * m) * a * wgt;
       a *= persistence;
       lambda *= 0.5;
@@ -278,6 +282,49 @@ export class HeightField {
     }
     return -1;
   }
+}
+
+/**
+ * Copy of the elevation grid where land around lakes is raised to at least the
+ * lake surface (+ a gentle slope), so lake planes meet their shores instead of
+ * "flooding" neighbouring cells that the world builder left below lake level.
+ */
+function raiseLakeShores(src: Float32Array, water: Float32Array, biome: Uint8Array, w: number, h: number): Float32Array {
+  const e = new Float32Array(src);
+  const n = w * h;
+  const level = new Float32Array(n).fill(-1e9);
+  const dist = new Uint8Array(n).fill(255);
+  let frontier: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (water[i] > -1e8) { level[i] = water[i]; dist[i] = 0; frontier.push(i); }
+  }
+  const R = 6;
+  for (let dstep = 1; dstep <= R && frontier.length; dstep++) {
+    const next: number[] = [];
+    for (const i of frontier) {
+      const x = i % w, y = (i / w) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const j = yy * w + xx;
+        if (dist[j] <= dstep) {
+          if (dist[j] === dstep && level[i] > level[j]) level[j] = level[i];
+          continue;
+        }
+        dist[j] = dstep;
+        level[j] = level[i];
+        next.push(j);
+      }
+    }
+    frontier = next;
+  }
+  for (let i = 0; i < n; i++) {
+    const d = dist[i];
+    if (d === 0 || d === 255 || biome[i] === Biome.Ocean) continue;
+    const minE = level[i] + 1.5 + d * 2.5;
+    if (e[i] < minE) e[i] = minE;
+  }
+  return e;
 }
 
 function cubicWeight(t: number): number {
