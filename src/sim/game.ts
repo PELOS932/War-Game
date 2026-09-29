@@ -31,6 +31,8 @@ import {
 
 const OK: CommandResult = { ok: true };
 const fail = (reason: string): CommandResult => ({ ok: false, reason });
+/** Max wall-clock ms of simulation per rendered frame. */
+const FRAME_SIM_BUDGET_MS = 14;
 const MAX_RESEARCH_SLOTS = 5;
 
 export class Game implements GameAPI {
@@ -43,6 +45,8 @@ export class Game implements GameAPI {
   private namer: UnitNamer;
   private ai: AIController;
   private acc = 0;
+  /** Wall-clock profile per subsystem (ms). */
+  readonly profile: Record<string, { total: number; max: number; calls: number }> = {};
 
   constructor(world: WorldData, state: GameState, seed: number) {
     this.seed = seed;
@@ -58,7 +62,7 @@ export class Game implements GameAPI {
   }
 
   get hourFraction(): number {
-    return this.acc;
+    return Math.min(1, this.acc % 1);
   }
 
   // ----- time ------------------------------------------------------------------
@@ -66,11 +70,15 @@ export class Game implements GameAPI {
     if (this.state.gameOver) return;
     const rate = SPEED_HOURS_PER_SECOND[this.state.speed] ?? 0;
     if (!rate) return;
-    this.acc += realSeconds * rate;
-    let n = Math.floor(this.acc);
-    this.acc -= n;
-    n = Math.min(n, 6); // avoid spiral of death on slow frames
-    for (let i = 0; i < n; i++) this.tick();
+    // Hours owed accumulate; each frame runs as many as fit in a small time
+    // budget so rendering stays smooth. Backlog is capped at one game day.
+    this.acc = Math.min(this.acc + realSeconds * rate, 24);
+    const start = performance.now();
+    while (this.acc >= 1) {
+      this.acc -= 1;
+      this.tick();
+      if (performance.now() - start > FRAME_SIM_BUDGET_MS) break;
+    }
   }
 
   stepHours(n: number): void {
@@ -86,11 +94,15 @@ export class Game implements GameAPI {
     const sim = this.sim;
     st.hour++;
     const safe = (name: string, fn: () => void) => {
+      const t0 = performance.now();
       try {
         fn();
       } catch (err) {
         console.error(`[sim] ${name} failed`, err);
       }
+      const dt = performance.now() - t0;
+      const p = (this.profile[name] ??= { total: 0, max: 0, calls: 0 });
+      p.total += dt; p.calls++; if (dt > p.max) p.max = dt;
     };
     safe('movement', () => movementHour(sim, this.search));
     safe('combat', () => combatHour(sim));

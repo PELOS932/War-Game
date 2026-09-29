@@ -142,7 +142,28 @@ export class PathSearch {
   }
 
   /** Returns hexes from start (exclusive) to goal (inclusive), or null. */
+  /** Route cache: same-hour hits for identical requests, failures remembered for a day. */
+  private cache = new Map<string, { hour: number; path: number[] | null; cost: number }>();
+  private cacheHour = -1;
+
   find(start: number, goal: number, p: MoveProfile, maxExpand?: number): number[] | null {
+    const hour = this.sim.state.hour;
+    if (hour !== this.cacheHour) {
+      this.cacheHour = hour;
+      if (this.cache.size > 4000) this.cache.clear();
+    }
+    const key = `${start}:${goal}:${p.nation}:${p.mode}:${p.mobility}:${p.engineers ? 1 : 0}`;
+    const hit = this.cache.get(key);
+    if (hit && (hit.path ? hit.hour === hour : hour - hit.hour < 24)) {
+      this.lastCost = hit.cost;
+      return hit.path ? hit.path.slice() : null;
+    }
+    const path = this.search(start, goal, p, maxExpand);
+    this.cache.set(key, { hour, path: path ? path.slice() : null, cost: this.lastCost });
+    return path;
+  }
+
+  private search(start: number, goal: number, p: MoveProfile, maxExpand?: number): number[] | null {
     this.lastCost = Infinity;
     if (start === goal) { this.lastCost = 0; return []; }
     const sim = this.sim;
@@ -166,7 +187,7 @@ export class PathSearch {
       const dx = (gx - cx[h]) * kmEW[row];
       return Math.sqrt(dx * dx + dz * dz * kmNS * kmNS) / hSpeed;
     };
-    const limit = maxExpand ?? (p.mode === 'land' ? 60000 : 160000);
+    const limit = maxExpand ?? (p.mode === 'land' ? 30000 : 60000);
     g[start] = 0;
     parent[start] = -1;
     stamp[start] = gen;

@@ -30,6 +30,9 @@ export interface AIController {
   onDay(day: number): void;
 }
 
+/** Wall-clock budget per game hour for military command (ms). */
+const MILITARY_BUDGET_MS = 6;
+
 const now: () => number = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
 
 export interface AIDebugInfo {
@@ -50,6 +53,7 @@ export interface AIDebugInfo {
 class AIRuntime {
   readonly ctx: AIContext;
   private lastHour = -1;
+  private milCursor = 0;
   private warParticipants = new Map<number, number[]>();
 
   constructor(game: GameAPI) {
@@ -113,8 +117,15 @@ class AIRuntime {
     // Weekly foreign policy review, staggered over the week.
     for (let i = weekSlot; i < n; i += 168) this.runWeekly(i);
 
-    // Military command by posture period.
-    for (let i = 0; i < n; i++) {
+    // Military command by posture period. Time-budgeted: nations whose turn
+    // comes up while the budget is spent simply run in a later hour, so the
+    // game never freezes when many nations re-plan at once.
+    const milStart = now();
+    const offset = this.milCursor % Math.max(1, n);
+    for (let k = 0; k < n; k++) {
+      if (now() - milStart > MILITARY_BUDGET_MS) break;
+      const i = (offset + k) % n;
+      this.milCursor = i + 1;
       const nat = state.nations[i];
       if (!nat.alive) continue;
       const mem = ctx.mem[i];
