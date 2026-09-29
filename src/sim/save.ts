@@ -2,6 +2,7 @@
 import type { GameAPI } from './api';
 import { Game } from './game';
 import { buildScenario } from './scenario';
+import { normalizeProfile } from './leaderProfile';
 import type { GameState } from './types';
 import type { WorldData } from '../worldgen/types';
 
@@ -55,6 +56,13 @@ export function serializeGame(game: GameAPI): string {
   const st = game.state;
   const out: Record<string, unknown> = { v: 1, seed: (game as Game).seed ?? 2030 };
   for (const k of DYNAMIC_KEYS) out[k] = st[k];
+  // Player leader & ideology (also stored on the nation; duplicated here for robustness).
+  const player = st.nations[st.playerNation];
+  if (player?.leaderProfile) out.leaderProfile = player.leaderProfile;
+  if (player?.ideologyId) {
+    out.playerIdeology = player.ideologyId;
+    out.playerIdeologyOrigin = player.ideologyOrigin;
+  }
   return JSON.stringify(out, replacer);
 }
 
@@ -67,6 +75,15 @@ export function loadGame(world: WorldData, json: string): GameAPI {
   state.ownerVersion++;
   state.ownerDirty = [];
   state.facilityVersion++;
+  const player = state.nations[state.playerNation];
+  if (player) {
+    if (data.leaderProfile && !player.leaderProfile) player.leaderProfile = normalizeProfile(data.leaderProfile);
+    else if (player.leaderProfile) player.leaderProfile = normalizeProfile(player.leaderProfile);
+    if (typeof data.playerIdeology === 'string' && !player.ideologyId) {
+      player.ideologyId = data.playerIdeology;
+      if (typeof data.playerIdeologyOrigin === 'string') player.ideologyOrigin = data.playerIdeologyOrigin;
+    }
+  }
   const game = new Game(world, state, seed);
   game.sim.rebuildIndices();
   return game;

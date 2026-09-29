@@ -5,6 +5,7 @@
  */
 import type { FlagSpec, Government, WorldData } from '../worldgen/types';
 import type { HexGrid } from '../core/hex';
+import type { LeaderProfile } from './leaderProfile';
 
 export type NationId = number; // index into GameState.nations
 
@@ -491,6 +492,13 @@ export interface Nation {
   upkeepFactor: number;
   /** Personnel lost in the last day (all wars). */
   casualtiesToday: number;
+  // ---- player ideology & leader (optional; see src/sim/ideology.ts) ----
+  /** Ideology chosen at game start (IdeologyId), when one was applied. */
+  ideologyId?: string;
+  /** The nation's real (2030) ideology the choice was made from (IdeologyId). */
+  ideologyOrigin?: string;
+  /** Portrait / identity of the player's leader from the Leader Creator. */
+  leaderProfile?: LeaderProfile;
 }
 
 /** Internal reference values captured at scenario start (so an idle economy stays stable). */

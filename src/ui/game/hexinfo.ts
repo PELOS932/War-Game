@@ -2,7 +2,8 @@
  * Hex information: hover tooltip on the map and the clicked-hex info panel.
  */
 import { h, clear, fmtThousands, escapeHTML, fmtNum, setTip } from '../dom';
-import { icon, facilityIcon, natoSymbol } from '../icons';
+import { icon, natoSymbol } from '../icons';
+import { facilityThumbHTML } from '../thumbs';
 import { flagHTML, barHTML } from '../widgets';
 import { report } from '../dialogs';
 import { TERRAIN_NAMES, DEPOSIT_NAMES, Terrain, isWaterTerrain, latitudeAt, longitudeAt } from '../../worldgen/types';
@@ -50,7 +51,7 @@ export function hexDetailsHTML(ctx: Ctx, hex: number, withUnits: boolean): { tit
       if (!f) return '';
       const def = st.facilityDefs[f.type];
       const state = f.constructionDaysLeft > 0 ? ` <span class="warn">(building ${Math.ceil(f.constructionDaysLeft)}d)</span>` : f.damage > 0.05 ? ` <span class="neg">(${Math.round(f.damage * 100)}% dmg)</span>` : '';
-      return `${escapeHTML(def?.name ?? '?')} L${f.level}${state}`;
+      return `<span style="display:inline-flex;align-items:center;gap:4px;margin:1px 0">${facilityThumbHTML(f.type, { w: 36, h: 24 })}<span>${escapeHTML(def?.name ?? '?')} L${f.level}${state}</span></span>`;
     }).join('<br>'));
   }
   if (ctx.player >= 0 && !isWaterTerrain(t)) {
@@ -184,7 +185,7 @@ export function createHexPanel(ctx: Ctx): HexPanel {
       if (!f || !mine) continue;
       const def = st.facilityDefs[f.type];
       if (f.level < (def?.maxLevel ?? 1) && f.constructionDaysLeft <= 0) {
-        const b = h('button', { class: 'sc-btn sm' }, h('span', { html: facilityIcon(f.type) }), `Upgrade ${def?.name ?? ''} → L${f.level + 1}`);
+        const b = h('button', { class: 'sc-btn sm' }, h('span', { html: facilityThumbHTML(f.type, { w: 27, h: 18 }) }), `Upgrade ${def?.name ?? ''} → L${f.level + 1}`);
         setTip(b, `Upgrade to level ${f.level + 1}. Increases output.`);
         b.addEventListener('click', () => {
           report(ctx.game.upgradeFacility(ctx.player, f.id), `${def?.name} upgrade started`);

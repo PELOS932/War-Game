@@ -7,6 +7,7 @@ import type { Nation, NationId, TechDef } from './types';
 import type { Sim } from './core';
 import { labLevels } from './economy';
 import { ownedDesigns } from './designs';
+import { addIdeologyMods } from './ideology';
 
 export const MAX_RESEARCH_SLOTS = 3;
 
@@ -77,6 +78,7 @@ export function availableTechs(sim: Sim, n: Nation): string[] {
 export function grantTech(sim: Sim, n: Nation, id: string): void {
   n.knownTechs.add(id);
   n.techMods = computeTechMods(sim.state.techs, n.knownTechs);
+  addIdeologyMods(n);
   const t = sim.state.techs.get(id);
   if (t) for (const did of t.unlocksDesigns) if (sim.state.designs.get(did)?.real) ownedDesigns(n).add(did);
 }

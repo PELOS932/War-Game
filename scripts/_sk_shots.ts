@@ -56,17 +56,13 @@ const FRAMES = (k: number) => `new Promise((resolve) => { let n = 0; const f = (
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  let port = 5174;
   let params = 'world=earth&game=real&player=USA';
   let out = '/tmp/claude-0/render';
   let spec = 'world,continent,mountains,city';
   let width = 1280, height = 720;
-  let profile = '/tmp/claude-0/render/profile';
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--params') params = args[++i];
-    else if (args[i] === '--port') port = Number(args[++i]);
     else if (args[i] === '--out') out = args[++i];
-    else if (args[i] === '--profile') profile = args[++i];
     else if (args[i] === '--size') { const [w, h] = args[++i].split('x').map(Number); width = w; height = h; }
     else spec = args[i];
   }
@@ -76,7 +72,7 @@ async function main(): Promise<void> {
   else shots = spec.split(',').map((s) => { const p = PRESETS[s]; if (!p) throw new Error(`unknown preset ${s}`); return p; });
 
   // Persistent profile so the Earth world stays cached in IndexedDB between runs.
-  const browser = await chromium.launchPersistentContext(profile, {
+  const browser = await chromium.launchPersistentContext('/tmp/claude-0/skylines/profile', {
     executablePath: '/opt/pw-browsers/chromium',
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
     viewport: { width, height },
@@ -84,7 +80,7 @@ async function main(): Promise<void> {
   const page = await browser.newPage();
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(`[page ${m.type()}]`, m.text().slice(0, 400)); });
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-  const url = `http://localhost:${port}/dev/render.html?${params}`;
+  const url = `http://localhost:5198/dev/render.html?${params}`;
   console.log('open', url);
   const t0 = Date.now();
   await page.goto(url);

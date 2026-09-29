@@ -3,7 +3,8 @@
  * stock, days of supply, world price, trade policy and manual market trades.
  */
 import { h, setText, setHTML, setClass, fmtCompact, fmtSigned, signClass, fmtMoney, clear, setTip } from '../../dom';
-import { resourceIcon, RESOURCE_UNITS, facilityIcon, icon } from '../../icons';
+import { resourceIcon, RESOURCE_UNITS, icon } from '../../icons';
+import { facilityThumbHTML } from '../../thumbs';
 import { RESOURCE_COUNT, RESOURCE_NAMES, type TradePolicy } from '../../../sim/types';
 import type { Ctx } from '../context';
 import type { TabView } from '../panel';
@@ -112,7 +113,7 @@ export function tradeTab(ctx: Ctx): TabView {
       const def = ctx.state.facilityDefs[f.type];
       if (def?.produces === r && ctx.state.hexOwner[f.hex] === ctx.player + 1) counts.set(f.type, (counts.get(f.type) ?? 0) + f.level);
     }
-    const html = [...counts.entries()].map(([t, lv]) => `<span class="sc-tag" style="display:inline-flex;align-items:center;gap:3px;height:18px">${facilityIcon(t)} ${ctx.state.facilityDefs[t].name} ×${lv}</span>`).join('') || '<span class="sc-dimmer">None</span>';
+    const html = [...counts.entries()].map(([t, lv]) => `<span class="sc-tag" style="display:inline-flex;align-items:center;gap:4px;height:24px;padding-left:2px">${facilityThumbHTML(t, { w: 30, h: 20 })} ${ctx.state.facilityDefs[t].name} ×${lv}</span>`).join('') || '<span class="sc-dimmer">None</span>';
     setHTML(facList, html);
   };
 

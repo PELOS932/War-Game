@@ -7,6 +7,7 @@
 import { TREATY_NAMES, UnitClass, type NationId, type Proposal, type TreatyType, type War } from './types';
 import type { Sim } from './core';
 import { clamp } from './core';
+import { ideologyRelationBias } from './ideology';
 
 export interface Evaluation {
   accept: boolean;
@@ -472,7 +473,7 @@ export function diplomacyDay(sim: Sim): void {
       if (!st.nations[b].alive) continue;
       const B = st.nations[b];
       const ideo = (0.5 - Math.abs(A.ideology - B.ideology) / 2) * 8;
-      const base = clamp((init[a * N + b] ?? 0) + adj[a * N + b] + ideo * 0.5 + (B.worldOpinion - 50) * 0.1, -100, 100);
+      const base = clamp((init[a * N + b] ?? 0) + adj[a * N + b] + ideo * 0.5 + (B.worldOpinion - 50) * 0.1 + ideologyRelationBias(A, B), -100, 100);
       const cur = rel[a * N + b];
       const v = cur + (base - cur) * 0.01;
       rel[a * N + b] = v;

@@ -8,6 +8,21 @@ import { flagImg } from '../widgets';
 import { dropdown } from '../dialogs';
 import { RESOURCE_COUNT, RESOURCE_NAMES, formatDate, hourToDate } from '../../sim/types';
 import { DEFCON_TEXT, type Ctx } from './context';
+import { leaderPortraitURL } from '../leaderPortrait';
+import { ideologyDef } from '../../sim/ideology';
+import type { Nation } from '../../sim/types';
+
+/** Player's leader portrait for the nation block (empty when no custom leader). */
+function leaderBadge(n: Nation): HTMLElement[] {
+  const p = n.leaderProfile;
+  if (!p) return [];
+  const img = h('img', { class: 'sc-tb-portrait', src: leaderPortraitURL(p, 27, 32, { flag: n.flag, zoom: 1.5 }), width: 27, height: 32 });
+  setTip(img, () => `<div class="tt-title">${escapeHTML(n.leaderTitle)} ${escapeHTML(n.leaderName)}</div>${escapeHTML(ideologyDef(n.ideologyId)?.name ?? '')}`);
+  img.style.marginRight = '6px';
+  img.style.display = 'inline-block';
+  img.style.verticalAlign = 'middle';
+  return [img];
+}
 
 export interface TopBar {
   el: HTMLElement;
@@ -177,7 +192,7 @@ export function createTopBar(ctx: Ctx, onNews: () => void, onMenu: () => void): 
       if (!n) return;
       if (flagFor !== n.id) {
         flagFor = n.id;
-        flagSlot.replaceChildren(flagImg(n.flag, 26));
+        flagSlot.replaceChildren(...leaderBadge(n), flagImg(n.flag, 26));
       }
       setText(nm, n.name);
       setText(ld, `${n.leaderTitle} ${n.leaderName}`);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { UnitCategory, UnitClass, CATEGORY_CLASS } from '../sim/types';
+import { UnitCategory, UnitClass, CATEGORY_CLASS, FacilityType } from '../sim/types';
 import { buildModel, formationFor, rotorGeometry } from './units/models';
+import { buildFacilityObject } from './facilityModels';
 
 /**
  * Offscreen 3D thumbnail service for unit designs.
@@ -32,7 +33,8 @@ const MAX_PER_FRAME = 3;
 const FRAME_BUDGET_MS = 12;
 const IDLE_DISPOSE_MS = 4000;
 const MAX_CONTEXT_ATTEMPTS = 3;
-const STORE_KEY = `sc-thumb-v1-${buildDesignObject ? 'd' : 'c'}:`;
+const STORE_KEY = `sc-thumb-v2-${buildDesignObject ? 'd' : 'c'}:`;
+const FAC_PREFIX = '@fac:';
 
 const cache = new Map<string, { sm: string; lg: string }>();
 const failed = new Set<string>();
@@ -56,6 +58,16 @@ let persist = true;
 /** Tell the service which category a design belongs to (needed for the fallback models). */
 export function hintDesignCategory(designId: string, category: UnitCategory): void {
   categoryHints.set(designId, category);
+}
+
+/** Thumbnail key used for a facility type (passed to `onThumbnailReady` listeners). */
+export function facilityThumbKey(type: FacilityType): string {
+  return FAC_PREFIX + type;
+}
+
+/** Cached data URL for a facility type's thumbnail, or null (queued) — same rules as designs. */
+export function getFacilityThumbnail(type: FacilityType, size: ThumbSize = 'sm'): string | null {
+  return getDesignThumbnail(facilityThumbKey(type), size);
 }
 
 /**
@@ -264,6 +276,10 @@ function buildFallback(cat: UnitCategory): THREE.Object3D {
 }
 
 function buildObject(designId: string): THREE.Object3D | null {
+  if (designId.startsWith(FAC_PREFIX)) {
+    const t = Number(designId.slice(FAC_PREFIX.length));
+    return Number.isFinite(t) ? buildFacilityObject(t as FacilityType) : null;
+  }
   if (buildDesignObject) {
     try {
       const o = buildDesignObject(designId);
@@ -290,6 +306,7 @@ function disposeOwned(obj: THREE.Object3D): void {
 }
 
 const VIEW_DIR = new THREE.Vector3(0.62, 0.5, 1).normalize();
+const VIEW_DIR_FAC = new THREE.Vector3(0.75, 0.95, 1).normalize();
 const tmpBox = new THREE.Box3();
 const tmpV = new THREE.Vector3();
 
@@ -309,13 +326,15 @@ function renderOne(designId: string): { sm: string; lg: string } | null {
   const center = box.getCenter(new THREE.Vector3());
 
   // Shadow disc on the model's base.
+  const isFac = designId.startsWith(FAC_PREFIX);
+  shadowDisc.visible = !isFac; // facility models carry their own ground
   shadowDisc.position.set(center.x, box.min.y + 0.001, center.z);
   shadowDisc.scale.set(size.x * 1.25 + 0.05, 1, size.z * 1.25 + 0.05);
   shadowDisc.updateMatrixWorld(true);
 
   // 3/4 orthographic camera framed to the object (+ most of the shadow).
   const radius = size.length() * 0.5 + 0.01;
-  camera.position.copy(center).addScaledVector(VIEW_DIR, radius * 4);
+  camera.position.copy(center).addScaledVector(isFac ? VIEW_DIR_FAC : VIEW_DIR, radius * 4);
   camera.up.set(0, 1, 0);
   camera.lookAt(center);
   camera.updateMatrixWorld(true);
@@ -332,7 +351,7 @@ function renderOne(designId: string): { sm: string; lg: string } | null {
     new THREE.Vector3(center.x - size.x * 0.52, box.min.y, center.z - size.z * 0.52),
     new THREE.Vector3(center.x + size.x * 0.52, box.min.y, center.z + size.z * 0.52),
   );
-  addCorners(sBox);
+  if (!isFac) addCorners(sBox);
   const aspect = LG_W / LG_H;
   let hw = (tmpBox.max.x - tmpBox.min.x) / 2;
   let hh = (tmpBox.max.y - tmpBox.min.y) / 2;

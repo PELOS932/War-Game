@@ -4,9 +4,9 @@
  * NATO symbol as a placeholder. Placeholders carry `data-thumb` and are
  * swapped in place (just that element) when the thumbnail finishes.
  */
-import { getDesignThumbnail, hintDesignCategory, onThumbnailReady, ThumbSize } from '../render/thumbnails';
-import { UnitCategory } from '../sim/types';
-import { natoSymbol, Affiliation } from './icons';
+import { getDesignThumbnail, getFacilityThumbnail, facilityThumbKey, hintDesignCategory, onThumbnailReady, ThumbSize } from '../render/thumbnails';
+import { UnitCategory, FacilityType } from '../sim/types';
+import { natoSymbol, facilityIcon, Affiliation } from './icons';
 
 export interface ThumbOpts {
   /** Box size in CSS px (default 48×32). */
@@ -56,4 +56,15 @@ export function designThumbEl(design: { id: string; category: UnitCategory }, o:
   const tmp = document.createElement('span');
   tmp.innerHTML = designThumbHTML(design, o);
   return tmp.firstElementChild as HTMLElement;
+}
+
+/** HTML for a facility-type thumbnail box (3D model image, SVG icon until ready). */
+export function facilityThumbHTML(type: FacilityType, o: { w?: number; h?: number; size?: ThumbSize } = {}): string {
+  hook();
+  const w = o.w ?? 48, hgt = o.h ?? 32;
+  const size: ThumbSize = o.size ?? (w > 64 ? 'lg' : 'sm');
+  const url = getFacilityThumbnail(type, size);
+  const style = `width:${w}px;height:${hgt}px`;
+  if (url) return `<span class="sc-thumb fac" style="${style}"><img src="${url}" alt="" draggable="false"></span>`;
+  return `<span class="sc-thumb fac pending" style="${style}" data-thumb="${facilityThumbKey(type)}" data-tsz="${size}">${facilityIcon(type)}</span>`;
 }

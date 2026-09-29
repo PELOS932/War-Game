@@ -3,7 +3,7 @@
  * construct facilities (pick a type, then place it on the map).
  */
 import { h, setText, setClass, clear, fmtMoney, fmtMillions, fmtNum, escapeHTML, setTip, KeyedList } from '../../dom';
-import { designThumbHTML } from '../../thumbs';
+import { designThumbHTML, facilityThumbHTML } from '../../thumbs';
 import { icon, natoSymbol, resourceIcon, facilityIcon, RESOURCE_SHORT } from '../../icons';
 import { bar } from '../../widgets';
 import {
@@ -179,7 +179,7 @@ export function buildTab(ctx: Ctx): TabView {
     clear(facGrid);
     facTiles.clear();
     ctx.state.facilityDefs.forEach((f) => {
-      const tile = h('div', { class: 'sc-factile' + (f.type === selFacility ? ' sel' : '') }, h('span', { html: facilityIcon(f.type) }), h('span', null, f.name));
+      const tile = h('div', { class: 'sc-factile' + (f.type === selFacility ? ' sel' : '') }, h('span', { html: facilityThumbHTML(f.type, { w: 60, h: 40 }) }), h('span', null, f.name));
       setTip(tile, `<div class="tt-title">${escapeHTML(f.name)}</div>${escapeHTML(f.description)}<div class="tt-sep"></div><div class="tt-row"><span>Cost</span><b>${fmtMillions(f.cost)}</b></div><div class="tt-row"><span>Build time</span><span>${f.buildDays} days</span></div>`);
       tile.addEventListener('click', () => {
         selFacility = f.type;
@@ -210,7 +210,7 @@ export function buildTab(ctx: Ctx): TabView {
     const placeBtn = h('button', { class: 'sc-btn primary' }, h('span', { html: icon('hammer') }), 'Place on map');
     placeBtn.addEventListener('click', () => ctx.setTarget({ kind: 'facility', type: f.type }));
     facDetail.append(
-      h('div', { class: 'sc-row', style: 'gap:8px' }, h('span', { html: facilityIcon(f.type), style: 'transform:scale(1.6);margin:4px 8px' }),
+      h('div', { class: 'sc-row', style: 'gap:8px' }, h('span', { html: facilityThumbHTML(f.type, { w: 120, h: 80 }) }),
         h('div', { class: 'sc-grow' }, h('div', { style: 'font-weight:800;font-size:13px;color:#fff' }, f.name), h('div', { class: 'sc-dim' }, f.description))),
       h('div', { class: 'sc-sechead' }, 'Production chain (per day, level 1)'), chain,
       h('div', { class: 'sc-statgrid', style: 'margin-top:6px' },
@@ -226,7 +226,7 @@ export function buildTab(ctx: Ctx): TabView {
     const where = h('div', { class: 'sc-dim', style: 'font-size:10px' });
     const pb = bar('amber', true);
     const fid = f.id;
-    const el = h('div', { class: 'sc-prodrow', style: 'cursor:pointer' }, h('span', { html: facilityIcon(f.type) }), h('div', { style: 'min-width:0' }, name, where), pb.el, h('span'));
+    const el = h('div', { class: 'sc-prodrow', style: 'cursor:pointer' }, h('span', { html: facilityThumbHTML(f.type) }), h('div', { style: 'min-width:0' }, name, where), pb.el, h('span'));
     el.addEventListener('click', () => {
       const fc = ctx.state.facilities.get(fid);
       if (fc) ctx.focusHex(fc.hex, '#ffc040');

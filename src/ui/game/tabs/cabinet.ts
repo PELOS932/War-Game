@@ -6,6 +6,8 @@ import { h, setText, fmtPct, setTip, escapeHTML } from '../../dom';
 import { icon, IconName } from '../../icons';
 import { bar, toggle, Toggle, Bar } from '../../widgets';
 import { portraitURL } from '../../portrait';
+import { leaderPortraitURL } from '../../leaderPortrait';
+import { ideologyDef, ideologyEffects } from '../../../sim/ideology';
 import { GOVERNMENT_NAMES, isDemocratic } from '../../../worldgen/types';
 import type { Department, Minister, MinisterRole } from '../../../sim/types';
 import type { Ctx } from '../context';
@@ -55,14 +57,16 @@ export function cabinetTab(ctx: Ctx): TabView {
     const n = ctx.me;
     built = n.id;
     const head = n.ministers.find((m) => m.role === 'head');
-    const hsCanvas = h('img', { src: portraitURL(n.leaderName, 70, 82, { age: 0.7 }), width: 70, height: 82, style: 'border:1px solid #000;box-shadow:0 0 0 1px rgba(240,168,48,.5)' });
+    const hsCanvas = h('img', { src: n.leaderProfile ? leaderPortraitURL(n.leaderProfile, 70, 82, { flag: n.flag }) : portraitURL(n.leaderName, 70, 82, { age: 0.7 }), width: 70, height: 82, style: 'border:1px solid #000;box-shadow:0 0 0 1px rgba(240,168,48,.5)' });
+    const ideo = ideologyDef(n.ideologyId);
+    if (ideo) setTip(hsCanvas, `<div class="tt-title">${escapeHTML(ideo.name)}</div><i>${escapeHTML(ideo.motto)}</i><div class="tt-sep"></div>` + ideologyEffects(ideo).map((e) => `<div class="tt-row"><span>${escapeHTML(e.label)}</span><span class="${e.good === null ? '' : e.good ? 'pos' : 'neg'}">${escapeHTML(e.text)}</span></div>`).join(''));
     el.append(
       h('div', { class: 'sc-headstate sc-inset' },
         hsCanvas,
         h('div', { style: 'flex:1;min-width:0' },
           h('div', { style: 'font-size:10px;color:var(--sc-amber);letter-spacing:.1em;text-transform:uppercase;font-weight:700' }, n.leaderTitle),
           h('div', { style: 'font-size:16px;font-weight:800;color:#fff' }, n.leaderName),
-          h('div', { class: 'sc-dim', style: 'margin-bottom:4px' }, GOVERNMENT_NAMES[n.government]),
+          h('div', { class: 'sc-dim', style: 'margin-bottom:4px' }, GOVERNMENT_NAMES[n.government] + (ideo && ideo.name !== GOVERNMENT_NAMES[n.government] ? ` · ${ideo.name}` : '')),
           headInfo,
         ),
       ),

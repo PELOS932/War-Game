@@ -1,0 +1,178 @@
+/* =======================================================================
+   Leader Creator, Ideology selection and in-game leader portraits
+   (same gunmetal skin as styles.css; all classes prefixed sc-lc / sc-ideo)
+   ======================================================================= */
+
+/* ------------------------------------------------------------ creator */
+.sc-lc-wrap {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(1240px, calc(100vw - 24px)); height: min(760px, calc(100vh - 20px));
+  display: flex; flex-direction: column; gap: 8px;
+}
+.sc-lc-header { text-align: center; }
+.sc-lc-header .l1 {
+  font-size: 28px; font-weight: 800; letter-spacing: .3em; text-transform: uppercase; line-height: 1;
+  background: linear-gradient(180deg, #ffffff 0%, #d9ddd2 35%, #8d9589 55%, #c5cabb 62%, #6d7569 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 14px rgba(240, 168, 48, 0.25));
+}
+.sc-lc-header .l2 { margin-top: 5px; font-size: 11.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--sc-amber2); text-shadow: 0 1px 0 #000; }
+.sc-lc-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 318px minmax(0, 1fr) 262px; gap: 8px; }
+.sc-lc-grid > .sc-panel { display: flex; flex-direction: column; min-height: 0; }
+
+.sc-lc-frame {
+  margin: 8px auto 0; width: 290px; height: 348px; flex: none; position: relative; padding: 4px;
+  background: linear-gradient(135deg, #b88a2a, #6a4a10 30%, #e0b050 50%, #7a5414 70%, #c8962e);
+  box-shadow: 0 0 0 1px #000, 0 6px 18px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.3);
+}
+.sc-lc-canvas { width: 282px; height: 340px; display: block; box-shadow: inset 0 0 0 1px #000; background: #111; }
+.sc-lc-plate {
+  margin: 6px 12px 0; padding: 5px 8px; text-align: center; flex: none;
+  background: linear-gradient(180deg, #2a2f2a, #181b18); border: 1px solid #000; box-shadow: var(--sc-inset), 0 0 0 1px rgba(240,168,48,.25);
+}
+.sc-lc-plate .t { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--sc-amber); font-weight: 700; }
+.sc-lc-plate .n { font-size: 17px; font-weight: 800; color: #fff; text-shadow: 0 1px 0 #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-lc-plate .m { font-size: 10.5px; color: var(--sc-text2); }
+.sc-lc-prevbtns { display: flex; gap: 6px; padding: 6px 12px 0; }
+.sc-lc-prevbtns .sc-btn { flex: 1; }
+.sc-lc-preview { padding-bottom: 10px; }
+.sc-lc-dossier { margin: 0 14px; font-size: 11px; }
+.sc-lc-dossier > .v { color: var(--sc-text); }
+
+.sc-lc-tabs { padding: 6px 8px 0; }
+.sc-lc-tabs .sc-subtabs { margin-bottom: 0; }
+.sc-lc-body { flex: 1; min-height: 0; padding: 6px 10px 12px; }
+.sc-lc-sec { margin-bottom: 4px; }
+.sc-lc-sec .sc-sechead { margin-top: 6px; }
+.sc-lc-sec .sc-slrow { grid-template-columns: 90px 1fr 60px; padding: 3px 4px; }
+
+.sc-lc-opts { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px; }
+.sc-lc-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; width: 60px; padding: 3px 2px 2px; cursor: pointer;
+  background: linear-gradient(180deg, #2e332d, #1d211d); border: 1px solid #070808; border-radius: 2px; box-shadow: var(--sc-bevel);
+}
+.sc-lc-opts.wide .sc-lc-opt { width: 68px; }
+.sc-lc-opt canvas { display: block; border: 1px solid #000; background: #0c0e0d; }
+.sc-lc-opt span { font-size: 9.5px; color: var(--sc-text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; line-height: 12px; }
+.sc-lc-opt:hover { background: linear-gradient(180deg, #414840, #2a2f29); }
+.sc-lc-opt:hover span { color: var(--sc-amber2); }
+.sc-lc-opt.on { background: linear-gradient(180deg, #7a5818, #4a340c); box-shadow: var(--sc-bevel), 0 0 0 1px var(--sc-amber), 0 0 8px rgba(240,168,48,.45); }
+.sc-lc-opt.on span { color: #fff2d0; font-weight: 700; }
+
+.sc-lc-swatches { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 2px; align-items: center; }
+.sc-lc-sw {
+  width: 22px; height: 22px; border-radius: 2px; cursor: pointer; border: 1px solid #000;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.3), inset -1px -1px 0 rgba(0,0,0,.35);
+}
+.sc-lc-sw:hover { transform: scale(1.08); }
+.sc-lc-sw.on { box-shadow: 0 0 0 2px var(--sc-amber), 0 0 8px rgba(240,168,48,.7), inset 1px 1px 0 rgba(255,255,255,.3); }
+.sc-lc-custom { width: 30px; height: 24px; padding: 0 2px; border: 1px solid #000; background: #111; cursor: pointer; }
+.sc-lc-text { flex: 1; height: 26px; font-size: 13px; width: 100%; }
+
+.sc-lc-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.sc-lc-preset {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 4px 3px; cursor: pointer;
+  background: linear-gradient(180deg, #2e332d, #1d211d); border: 1px solid #070808; border-radius: 2px; box-shadow: var(--sc-bevel);
+}
+.sc-lc-preset canvas { width: 100%; aspect-ratio: 5 / 6; height: auto; display: block; border: 1px solid #000; }
+.sc-lc-preset span { font-size: 11px; font-weight: 700; color: var(--sc-text); letter-spacing: .04em; }
+.sc-lc-preset:hover { box-shadow: var(--sc-bevel), 0 0 0 1px var(--sc-amber); }
+.sc-lc-preset:hover span { color: var(--sc-amber2); }
+
+.sc-lc-savebtns { display: flex; gap: 6px; padding: 8px 8px 6px; }
+.sc-lc-savebtns .sc-btn { flex: 1; }
+.sc-lc-slots { flex: 1; min-height: 0; margin: 0 8px; padding: 3px; }
+.sc-lc-slot {
+  display: flex; gap: 7px; align-items: center; padding: 4px; margin-bottom: 3px; cursor: pointer;
+  background: linear-gradient(180deg, #2a2f29, #1c1f1c); border: 1px solid #070808; box-shadow: var(--sc-bevel);
+}
+.sc-lc-slot canvas { width: 40px; height: 48px; border: 1px solid #000; flex: none; }
+.sc-lc-slot .info { flex: 1; min-width: 0; }
+.sc-lc-slot .nm { font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-lc-slot .tl { font-size: 10px; color: var(--sc-amber); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-lc-slot .dt { font-size: 10px; color: var(--sc-text3); }
+.sc-lc-slot:hover { background: linear-gradient(180deg, #3a4139, #262a25); }
+.sc-lc-slot.sel { box-shadow: var(--sc-bevel), 0 0 0 1px var(--sc-amber); background: linear-gradient(180deg, #4a3c1c, #2a2210); }
+.sc-lc-slot .sc-btn { width: 20px; padding: 0; }
+.sc-lc-hint { padding: 6px 10px 8px; font-size: 10.5px; }
+.sc-lc-footer { display: flex; gap: 8px; align-items: center; }
+.sc-lc-footer .sc-btn.big { height: 34px; padding: 0 22px; font-size: 13.5px; }
+
+@media (max-width: 1100px) {
+  .sc-lc-grid { grid-template-columns: 250px minmax(0, 1fr) 210px; }
+  .sc-lc-frame { width: 230px; height: 276px; }
+  .sc-lc-canvas { width: 222px; height: 268px; }
+}
+@media (max-height: 740px) {
+  .sc-lc-header .l1 { font-size: 22px; }
+  .sc-lc-frame { width: 240px; height: 288px; }
+  .sc-lc-canvas { width: 232px; height: 280px; }
+}
+
+/* ----------------------------------------------------------- ideology */
+.sc-ideo { background: radial-gradient(ellipse at 50% 40%, rgba(10,16,16,.55), rgba(0,0,0,.86)); }
+.sc-ideo-wrap {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(1280px, calc(100vw - 24px)); height: min(780px, calc(100vh - 20px));
+  display: flex; flex-direction: column; gap: 8px;
+}
+.sc-ideo-header { display: flex; align-items: center; gap: 12px; padding: 8px 12px; }
+.sc-ideo-portrait { width: 62px; height: 75px; border: 1px solid #000; box-shadow: 0 0 0 1px rgba(240,168,48,.6), 0 3px 8px rgba(0,0,0,.6); flex: none; }
+.sc-ideo-header .names { flex: 1; min-width: 0; }
+.sc-ideo-header .l0 { font-size: 20px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: var(--sc-amber2); text-shadow: 0 1px 0 #000, 0 0 12px rgba(240,168,48,.3); }
+.sc-ideo-header .l1 { font-size: 14px; font-weight: 700; color: #fff; margin-top: 2px; }
+.sc-ideo-header .l2 { font-size: 11px; margin-top: 2px; }
+.sc-ideo-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 8px; }
+.sc-ideo-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(214px, 1fr)); gap: 8px; align-content: start; padding: 2px 4px 2px 2px; }
+.sc-ideo-card {
+  position: relative; cursor: pointer; padding: 0 0 8px; overflow: hidden;
+  background: var(--sc-brush), linear-gradient(180deg, rgba(52,58,52,.97), rgba(28,32,29,.97));
+  border: 1px solid #070808; border-radius: 2px; box-shadow: var(--sc-bevel), 0 3px 10px rgba(0,0,0,.5);
+  transition: transform .08s;
+}
+.sc-ideo-card .stripe { height: 4px; background: var(--ic); box-shadow: 0 1px 0 #000; }
+.sc-ideo-card .head { display: flex; gap: 8px; align-items: center; padding: 7px 8px 3px; }
+.sc-ideo-card .emb {
+  width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 50%;
+  color: #fff; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ic) 70%, #fff), var(--ic) 55%, color-mix(in srgb, var(--ic) 60%, #000));
+  border: 1px solid #000; box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 2px 5px rgba(0,0,0,.6);
+}
+.sc-ideo-emblem { width: 24px; height: 24px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
+.sc-ideo-card .nm { font-size: 13.5px; font-weight: 800; color: #fff; text-shadow: 0 1px 0 #000; line-height: 1.1; }
+.sc-ideo-card .gov { font-size: 10px; color: var(--sc-amber); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+.sc-ideo-card .motto { padding: 0 9px 5px; font-size: 11px; font-style: italic; color: var(--sc-text2); min-height: 18px; }
+.sc-ideo-card .fx { padding: 0 9px; display: flex; flex-direction: column; gap: 1px; }
+.sc-ideo-card .fx > div, .sc-ideo-fxlist > div { display: flex; justify-content: space-between; gap: 8px; font-size: 10.5px; }
+.sc-ideo-card .fx > div span, .sc-ideo-fxlist > div span { color: var(--sc-text2); }
+.sc-ideo-card .fx > div.pos b, .sc-ideo-fxlist > div.pos b { color: var(--sc-pos); }
+.sc-ideo-card .fx > div.neg b, .sc-ideo-fxlist > div.neg b { color: var(--sc-neg); }
+.sc-ideo-card .cur {
+  position: absolute; top: 9px; right: 6px; font-size: 8.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  background: linear-gradient(180deg, #ffd27a, #c77f14); color: #1a1204; padding: 1px 5px; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+.sc-ideo-card.origin .head { padding-right: 58px; }
+.sc-ideo-card:hover { transform: translateY(-1px); box-shadow: var(--sc-bevel), 0 0 0 1px rgba(240,168,48,.55), 0 4px 12px rgba(0,0,0,.6); }
+.sc-ideo-card.sel { box-shadow: var(--sc-bevel), 0 0 0 2px var(--sc-amber), 0 0 16px rgba(240,168,48,.45); background: var(--sc-brush), linear-gradient(180deg, rgba(78,70,44,.97), rgba(38,34,22,.97)); }
+.sc-ideo-detail { display: flex; flex-direction: column; min-height: 0; }
+.sc-ideo-detail .body { padding: 10px; flex: 1; min-height: 0; }
+.sc-ideo-dhead { display: flex; gap: 10px; align-items: center; }
+.sc-ideo-dhead .emb {
+  width: 54px; height: 54px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ic) 70%, #fff), var(--ic) 55%, color-mix(in srgb, var(--ic) 60%, #000));
+  border: 1px solid #000; box-shadow: 0 0 0 2px rgba(240,168,48,.5), 0 3px 8px rgba(0,0,0,.6);
+}
+.sc-ideo-dhead .emb .sc-ideo-emblem { width: 34px; height: 34px; }
+.sc-ideo-dhead .nm { font-size: 19px; font-weight: 800; color: #fff; text-shadow: 0 1px 0 #000; }
+.sc-ideo-dhead .motto { font-style: italic; color: var(--sc-amber2); font-size: 11.5px; }
+.sc-ideo-desc { margin: 8px 0 2px; font-size: 11.5px; line-height: 1.45; color: var(--sc-text); }
+.sc-ideo-fxlist { display: flex; flex-direction: column; gap: 2px; padding: 0 4px; }
+.sc-ideo-fxlist > div { font-size: 11.5px; }
+.sc-ideo-note { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; padding: 4px 6px; margin: 3px 0; background: rgba(0,0,0,.3); border: 1px solid #000; }
+.sc-ideo-note.pos { color: var(--sc-pos); }
+.sc-ideo-note.neg { color: #ffb0a0; }
+.sc-ideo-footer { display: flex; gap: 8px; align-items: center; }
+.sc-ideo-footer .sc-btn.big { height: 34px; padding: 0 22px; font-size: 13.5px; }
+
+/* ----------------------------------------------------- in-game portraits */
+.sc-tb-portrait { width: 27px; height: 32px; border: 1px solid #000; box-shadow: 0 0 0 1px rgba(240,168,48,.55); flex: none; display: block; }
+.sc-tb-nation .sc-tb-leader { display: flex; align-items: center; gap: 6px; }

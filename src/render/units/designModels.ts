@@ -237,7 +237,7 @@ function buildTurret(k: Kit, t: Turret, hx: number, baseY: number, W: number): v
       }
       if (t.wedge) {
         for (const s of [1, -1]) {
-          const pts: P2[] = [[lf - l * 0.3, hw * 1.02], [lf + l * 0.28, fw + 0.012], [lf, fw + 0.004], [lf - l * 0.3, fw]];
+          const pts: P2[] = [[lf - l * 0.34, hw * 1.03], [lf + l * 0.36, fw + 0.014], [lf, fw + 0.004], [lf - l * 0.3, fw]];
           const pp = s > 0 ? pts : mir(pts);
           k.tint(prismoid(pp, inset(pp, 0.85, 0.96, -l * 0.04), h * 0.86), COL.TINT, { pos: [x0, baseY + h * 0.08, tz] });
         }
@@ -584,7 +584,11 @@ export function vehicle(s: VehSpec): BuiltModel {
           const hh = clr + (H - clr) * 0.55;
           prof = [[xr, clr], [xf - 0.03, clr], [xf, clr + 0.05], [xf, hh], [xf - L * 0.3, hh + 0.02], [xf - L * 0.42, H], [xr + L * 0.42, H], [xr + L * 0.4, rearH], [xr, rearH]];
           if (rearH < H - 0.01) prof = [[xr, clr], [xf - 0.03, clr], [xf, clr + 0.05], [xf, hh], [xf - L * 0.3, hh + 0.02], [xf - L * 0.42, H], [xr + L * 0.42, H], [xr + L * 0.42, rearH], [xr, rearH]];
-          k.add(box(0.02, (H - hh) * 0.7, W * 0.7), COL.GLASS, { pos: [xf - L * 0.35, hh + (H - hh) * 0.1, 0], rot: [0, 0, 0.55] });
+          {
+            const ax = xf - L * 0.3, ay = hh + 0.02, bx = xf - L * 0.42, by = H;
+            const ang = Math.atan2(by - ay, ax - bx);
+            k.add(boxC(Math.hypot(ax - bx, by - ay) * 0.8, 0.008, W * 0.74), COL.GLASS, { pos: [(ax + bx) / 2 + 0.004, (ay + by) / 2 + 0.004, 0], rot: [0, 0, -ang] });
+          }
           break;
         }
         case 'blunt': prof = [[xr, clr], [xf - 0.04, clr], [xf, clr + 0.04], [xf, H - 0.03], [xf - 0.04, H], [xr, rearH]]; break;
@@ -601,7 +605,7 @@ export function vehicle(s: VehSpec): BuiltModel {
       // Truck: frame + cab.
       const fy = wr * 1.25;
       k.add(box(L * 0.97, 0.04, W * 0.55), COL.DARK, { pos: [0, fy - 0.02, 0] });
-      const cabH = s.cabH ?? 0.25;
+      const cabH = s.cabH ?? 0.2;
       const cx1 = xf, cx0 = xf - cabL;
       const cab = s.cab ?? 'flat';
       if (cab === 'maz') {
@@ -658,6 +662,10 @@ export function vehicle(s: VehSpec): BuiltModel {
   if (add.has('lmg')) {
     k.add(box(0.04, 0.05, 0.04), COL.DARK, { pos: [0, H, 0] });
     k.tube([0, H + 0.04, 0], [0.14, H + 0.05, 0], 0.006, 0.006, COL.DARK, 4);
+  }
+  if (add.has('cabin')) {
+    k.tint(prismoid(rect(-0.13, 0.13, -W * 0.46, W * 0.46), rect(-0.13, 0.08, -W * 0.44, W * 0.44), 0.13), COL.TINT, { pos: [xf - 0.17, H, 0] });
+    k.add(box(0.01, 0.04, W * 0.7), COL.GLASS, { pos: [xf - 0.07, H + 0.07, 0], rot: [0, 0, 0.7] });
   }
   if (add.has('cage')) for (const z of [1, -1]) k.add(box(L * 0.75, H * 0.6, 0.006), 0x33372f, { pos: [0, H * 0.35, z * (W / 2 + 0.03)] });
   return k.done();
@@ -783,6 +791,8 @@ export interface AirSpec {
   lambda?: boolean;
   probe?: boolean;
   hump?: number;
+  /** Blended body / chine plate half-width (lifting body between fuselage and wings). */
+  bw?: number;
 }
 
 function propeller(k: Kit, x: number, y: number, z: number, r: number, blades: number): void {
@@ -831,6 +841,11 @@ export function aircraft(s: AirSpec): BuiltModel {
   if (s.radome) {
     k.add(cylC(0.004, 0.004, 0.08, 4), COL.METAL, { pos: [fx - 0.05, fy + r * sy + 0.04, 0] });
     k.add(cylC(0.14, 0.14, 0.025, 14), COL.LIGHT, { pos: [fx - 0.05, fy + r * sy + 0.09, 0] });
+  }
+  if (s.bw) {
+    const bp: P2[] = [[xn - nose * 0.85, 0.001], [xn - nose * 1.5, s.bw], [xt + tail * 0.3, s.bw * 0.95], [xt + 0.01, 0.001]];
+    k.tint(plate(bp, r * sy * 0.9), bodyC, { pos: [0, fy - r * sy * 0.15, 0] });
+    k.tint(plate(mir(bp), r * sy * 0.9), bodyC, { pos: [0, fy - r * sy * 0.15, 0] });
   }
   // Main wing.
   const wt = s.wing?.t ?? 0.018;
@@ -1434,8 +1449,10 @@ export function submarine(s: SubSpec): BuiltModel {
     : [[-0.5, 0.05], [-0.4, 0.45], [-0.3, 0.88], [-0.22, 1], [0.35, 1], [0.44, 0.85], [0.49, 0.5], [0.5, 0.05]];
   const body = 0x2a2e33;
   k.add(lathe(prof.map(([x, f]) => [x, f * r] as P2), 12), body, { pos: [0, cy, 0], scale: [1, 1, sz] });
-  const [sx, sl, sh, st] = s.sail;
+  const [sx, sl, sh0, st] = s.sail;
+  const sh = sh0 * 1.35;
   const sy0 = cy + r * 0.8;
+  const shk = 1.35;
   const w = r * 0.42;
   if (st === 1) {
     const bot: P2[] = [[sx - sl * 0.7, 0], [sx - sl / 2, -w * 1.3], [sx + sl * 0.3, -w * 1.3], [sx + sl * 0.75, 0], [sx + sl * 0.3, w * 1.3], [sx - sl / 2, w * 1.3]];
@@ -1488,4 +1505,115 @@ export function buildSpec(s: ModelSpec): BuiltModel {
     case 'cv': return carrier(s);
     case 'sub': return submarine(s);
   }
+}
+
+// ===========================================================================
+// Public API: design lookup, cached building, standalone objects
+// ===========================================================================
+import { UNIT_DESIGNS } from '../../sim/data/units';
+import { realUnitDesigns } from '../../sim/data/realdesigns';
+import type { UnitDesign } from '../../sim/types';
+import { specKey, visualFor, type DesignVisual } from './modelSpecs';
+
+let designIndex: Map<string, UnitDesign> | null = null;
+/** Design lookup (generic sim designs + real equipment) by id. */
+export function designById(id: string): UnitDesign | undefined {
+  if (!designIndex) {
+    designIndex = new Map();
+    for (const d of UNIT_DESIGNS) designIndex.set(d.id, d);
+    for (const d of realUnitDesigns()) designIndex.set(d.id, d);
+  }
+  return designIndex.get(id);
+}
+
+/** Resolved visual of a design with short geometry keys (cached per design id). */
+export interface ResolvedVisual { v: DesignVisual; mainKey: string; extraKey: string | null }
+const visCache = new Map<string, ResolvedVisual>();
+const keyOfSpec = new Map<string, string>();
+const specByKey = new Map<string, ModelSpec>();
+const built = new Map<string, BuiltModel>();
+/** Short stable id for a spec; identical specs share one id (and one geometry). */
+export function internSpec(s: ModelSpec): string {
+  const full = specKey(s);
+  let k = keyOfSpec.get(full);
+  if (!k) {
+    k = `m${keyOfSpec.size}`;
+    keyOfSpec.set(full, k);
+    specByKey.set(k, s);
+  }
+  return k;
+}
+export function resolvedVisual(d: UnitDesign): ResolvedVisual {
+  let r = visCache.get(d.id);
+  if (!r) {
+    const v = visualFor(d);
+    r = { v, mainKey: internSpec(v.main), extraKey: v.extra ? internSpec(v.extra) : null };
+    visCache.set(d.id, r);
+  }
+  return r;
+}
+/** Built model for a key (null if the key is unknown). Builds and caches on first use. */
+export function builtModel(key: string): BuiltModel | null {
+  let b = built.get(key);
+  if (!b) {
+    const s = specByKey.get(key);
+    if (!s) return null;
+    b = buildSpec(s);
+    built.set(key, b);
+  }
+  return b;
+}
+export const isBuilt = (key: string): boolean => built.has(key);
+
+/** Copy of a model geometry with the nation tint baked into the vertex colours (for standalone rendering). */
+export function bakeTint(geo: THREE.BufferGeometry, tint: THREE.ColorRepresentation): THREE.BufferGeometry {
+  const g = geo.clone();
+  const c = new THREE.Color(tint);
+  const col = g.getAttribute('color') as THREE.BufferAttribute | undefined;
+  const t = g.getAttribute('aTint') as THREE.BufferAttribute | undefined;
+  if (col && t) {
+    for (let i = 0; i < col.count; i++) {
+      const w = t.getX(i);
+      col.setXYZ(i, col.getX(i) * (1 - w + w * c.r), col.getY(i) * (1 - w + w * c.g), col.getZ(i) * (1 - w + w * c.b));
+    }
+  }
+  return g;
+}
+
+const rotorGeoCache = new Map<string, G>();
+export function rotorGeo(r: number, b: number): G {
+  const k = `${r.toFixed(3)}|${b}`;
+  let g = rotorGeoCache.get(k);
+  if (!g) rotorGeoCache.set(k, (g = rotorGeometry(r, b)));
+  return g;
+}
+
+/** Standalone object of a spec (tint baked, rotors as child meshes). */
+export function buildSpecObject(s: ModelSpec, tint: THREE.ColorRepresentation = 0x7d8a6a): THREE.Object3D {
+  const b = buildSpec(s);
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2 });
+  const group = new THREE.Group();
+  group.add(new THREE.Mesh(bakeTint(b.geo, tint), mat));
+  b.geo.dispose();
+  for (const r of b.rotors) {
+    const m = new THREE.Mesh(rotorGeometry(r.r, r.b), mat);
+    m.position.set(r.x, r.y, r.z);
+    m.rotation.y = r.dir * 0.4;
+    group.add(m);
+  }
+  return group;
+}
+
+/**
+ * Standalone, correctly oriented model of a design (+x forward, y up, roughly
+ * unit length, base at y = 0) for offscreen thumbnail / preview rendering.
+ * Returns a Group of Meshes (MeshStandardMaterial, vertex colours; `tint`
+ * recolours the nation-coloured parts). Caller disposes geometries/materials.
+ */
+export function buildDesignObject(designId: string, tint: THREE.ColorRepresentation = 0x7d8a6a): THREE.Object3D | null {
+  const d = designById(designId);
+  if (!d) return null;
+  const o = buildSpecObject(resolvedVisual(d).v.main, tint);
+  o.name = designId;
+  return o;
 }

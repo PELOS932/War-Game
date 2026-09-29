@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Design Model Gallery</title>
+  <style>
+    html, body { margin: 0; background: #11161c; color: #dfe8f0; font: 11px/1.25 system-ui, sans-serif; }
+    #grid { position: relative; }
+    canvas { position: absolute; left: 0; top: 0; }
+    .lbl { position: absolute; padding: 3px 5px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+    .lbl b { color: #fff; font-size: 11px; }
+    .lbl i { color: #8fb3cf; font-style: normal; }
+    .lbl .h { color: #ffd060; }
+  </style>
+</head>
+<body>
+  <div id="grid"></div>
+  <script type="module" src="./models.ts"></script>
+</body>
+</html>

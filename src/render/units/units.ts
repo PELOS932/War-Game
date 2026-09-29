@@ -1,5 +1,5 @@
 /** Fixed size of unit models in world units (a hex is ~1.7 units across). */
-const UNIT_MODEL_SIZE = 0.5;
+const UNIT_MODEL_SIZE = 0.9;
 import * as THREE from 'three';
 import type { GameAPI } from '../../sim/api';
 import { CATEGORY_CLASS, SPEED_HOURS_PER_SECOND, UnitCategory, UnitClass, type Unit } from '../../sim/types';
@@ -11,17 +11,27 @@ import { patchStandard } from '../lighting';
 import { TerrainChunks } from '../terrain/chunks';
 import { ATLAS_H, ATLAS_W, BadgeAtlas, DIGIT_H, DIGIT_W, DIGIT_Y0, FLAG_H, FLAG_W, flagCell, SYM_H, SYM_W, symbolCell } from './atlas';
 import { buildModel, Formation, formationFor, ModelKind } from './models';
+import { builtModel, isBuilt, resolvedVisual, rotorGeo, type RotorMount } from './designModels';
 
 /** Badge size in CSS px (frame 52×32 + 8 px stem). */
 const BW = 52, BH = 40, STEM = 8;
 const MODEL_MAX_DIST = 75;
+/** Beyond this camera→unit distance the per-category model is used instead of the per-design one. */
+const DETAIL_DIST = 60;
+/** Max distinct per-design models drawn per frame (bounds draw calls); others fall back to category models. */
+const MAX_DETAIL_KEYS = 140;
+/** Per-design geometries generated per frame at most (lazy build without stalls). */
+const BUILDS_PER_FRAME = 4;
+
+/** Per-design render info (cached by design id). */
+interface DInfo { cat: number; main: string | null; extra: string | null; members: [number, number][] | null; mscale: number }
 const CLUSTER_DIST = 75;
 
 interface Disp {
   id: number;
   x: number; z: number; y: number; h: number;
   fx: number; fz: number; tx: number; tz: number; t: number; dur: number;
-  cat: number; cls: UnitClass; nation: number; form: Formation;
+  cat: number; cls: UnitClass; nation: number; form: Formation; info: DInfo;
   embarked: boolean; airborne: boolean; onCarrier: boolean;
   strength: number;
   seen: number;
@@ -233,7 +243,16 @@ export class Units {
   private canvas: HTMLCanvasElement;
   private game: GameAPI | null = null;
   private disp = new Map<number, Disp>();
-  private pools = new Map<ModelKind, Pool>();
+  private pools = new Map<string, Pool>();
+  private poolUsed = new Map<string, number>();
+  private infoCache = new Map<string, DInfo>();
+  private usedKeys = new Set<string>();
+  private builds = 0;
+  private buildT0 = 0;
+  /** Stats of the last frame (dev/bench). */
+  stats = { detailKeys: 0, detailUnits: 0, categoryUnits: 0, pools: 0 };
+  /** Camera distance up to which per-design models are drawn (0 = category models only). */
+  detailDist = DETAIL_DIST;
   private mat: THREE.MeshStandardMaterial;
   private glow = { value: 0.2 };
   private frame = 0;
@@ -367,18 +386,75 @@ export class Units {
   }
 
   private pool(kind: ModelKind): Pool {
-    let p = this.pools.get(kind);
+    const key = `k:${kind}`;
+    let p = this.pools.get(key);
     if (!p) {
       p = new Pool(buildModel(kind), this.mat, this.group, 64);
-      this.pools.set(kind, p);
+      this.pools.set(key, p);
     }
+    this.poolUsed.set(key, this.frame);
     return p;
+  }
+
+  /** Instanced pool of a per-design model (geometry built lazily by the library). */
+  private designPool(key: string): Pool {
+    const pk = `d:${key}`;
+    let p = this.pools.get(pk);
+    if (!p) {
+      p = new Pool(builtModel(key)!.geo, this.mat, this.group, 8);
+      this.pools.set(pk, p);
+    }
+    this.poolUsed.set(pk, this.frame);
+    return p;
+  }
+
+  private rotorPool(r: number, b: number): Pool {
+    const pk = `r:${r.toFixed(3)}|${b}`;
+    let p = this.pools.get(pk);
+    if (!p) {
+      p = new Pool(rotorGeo(r, b), this.mat, this.group, 16);
+      p.mesh.castShadow = false;
+      this.pools.set(pk, p);
+    }
+    this.poolUsed.set(pk, this.frame);
+    return p;
+  }
+
+  /** May this frame draw per-design model `key`? (bounded distinct models + lazy build budget). */
+  private detailOK(key: string): boolean {
+    if (this.usedKeys.has(key)) return true;
+    if (this.usedKeys.size >= MAX_DETAIL_KEYS) return false;
+    if (!isBuilt(key)) {
+      if (this.builds >= BUILDS_PER_FRAME || performance.now() - this.buildT0 > 8) return false;
+      this.builds++;
+    }
+    this.usedKeys.add(key);
+    return true;
+  }
+
+  private designInfo(id: string): DInfo {
+    let i = this.infoCache.get(id);
+    if (!i) {
+      const d = this.game?.state.designs.get(id);
+      const cat = d?.category ?? UnitCategory.Infantry;
+      i = { cat, main: null, extra: null, members: null, mscale: 1 };
+      if (d) {
+        try {
+          const rv = resolvedVisual(d);
+          i = { cat, main: rv.mainKey, extra: rv.extraKey, members: rv.v.members ?? null, mscale: rv.v.scale ?? 1 };
+        } catch (e) {
+          console.warn('design model failed', id, e);
+        }
+      }
+      this.infoCache.set(id, i);
+    }
+    return i;
   }
 
   private category(u: Unit): number {
     let c = this.catCache.get(u.design);
     if (c === undefined) {
-      c = this.game?.state.designs.get(u.design)?.category ?? UnitCategory.Infantry;
+      c = this.designInfo(u.design).cat;
       this.catCache.set(u.design, c);
     }
     return c;
@@ -442,7 +518,7 @@ export class Units {
         const cat = this.category(u);
         o = {
           id: u.id, x: u.x, z: u.z, y: 0, h: u.heading, fx: u.x, fz: u.z, tx: u.x, tz: u.z, t: 1, dur: tickDur,
-          cat, cls: CATEGORY_CLASS[cat as UnitCategory], nation: u.nation, form: formationFor(cat, u.embarked),
+          cat, cls: CATEGORY_CLASS[cat as UnitCategory], nation: u.nation, form: formationFor(cat, u.embarked), info: this.designInfo(u.design),
           embarked: u.embarked, airborne: u.airborne, onCarrier: false, strength: u.strength, seen: frame, hex: u.hex,
           rx: u.x, rz: u.z, ry: 0, sx: 0, sy: 0, onScreen: false, badge: false, bOffX: 0, bOffY: 0, bScale: 1,
           hx: NaN, hz: NaN, hsp: 0, hSurf: 0, hWater: -Infinity, hGround: 0,
@@ -493,7 +569,9 @@ export class Units {
       if (l.length < 2) continue;
       l.sort((a, b) => a.id - b.id);
       const n = l.length;
-      const r = s * (n <= 4 ? 0.62 : 0.85);
+      // Ships and aircraft are longer than land formations: spread them further.
+      const wide = l[0].cls !== UnitClass.Land && !(l[0].cls === UnitClass.Air && !l[0].airborne);
+      const r = s * (n <= 4 ? (wide ? 0.78 : 0.62) : wide ? 1.0 : 0.85);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + 0.5;
         l[i].rx += Math.cos(a) * r;
@@ -529,11 +607,16 @@ export class Units {
       o.badge = false;
     }
 
-    // 4. Models.
+    // 4. Models: per-design model near the camera, category model further away.
     const showModels = d < MODEL_MAX_DIST;
+    this.usedKeys.clear();
+    this.builds = 0;
+    this.buildT0 = performance.now();
+    let nDetail = 0, nCat = 0;
     if (showModels) {
       const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       const sphere = new THREE.Sphere();
+      const cp = camera.position;
       for (const o of this.disp.values()) {
         if (o.onCarrier) continue;
         sphere.center.set(o.rx, o.ry, o.rz);
@@ -542,9 +625,8 @@ export class Units {
         const nc = this.natColors[o.nation] ?? this.col.set(0x888888);
         const f = o.form;
         const ch = Math.cos(o.h), sh = Math.sin(o.h);
-        const ms = s * f.scale;
         const isAir = o.cls === UnitClass.Air;
-        const place = (kind: ModelKind, lx: number, lz: number, scale: number, yaw: number) => {
+        const place = (pool: Pool, rotors: RotorMount[] | null, heli: boolean, lx: number, lz: number, scale: number, yaw: number) => {
           const wx = o.rx + (lx * ch - lz * sh) * s;
           const wz = o.rz + (lx * sh + lz * ch) * s;
           let wy = o.ry;
@@ -557,11 +639,21 @@ export class Units {
             this.q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), roll));
           }
           this.m4.compose(this.v.set(wx, wy, wz), this.q, this.sv.set(scale, scale, scale));
-          this.pool(kind).push(this.m4, nc);
-          if (kind === 'heli') {
+          pool.push(this.m4, nc);
+          if (heli) {
             this.q.setFromAxisAngle(this.up, this.time * 25 + o.id);
             this.m4.compose(this.v.set(wx + 0.12 * scale * ch, wy + 0.4 * scale, wz + 0.12 * scale * sh), this.q, this.sv.set(scale, scale, scale));
             this.pool('rotor').push(this.m4, nc);
+          }
+          if (rotors) {
+            const cy = Math.cos(o.h - yaw), sy = Math.sin(o.h - yaw);
+            for (const m of rotors) {
+              const ang = o.airborne ? this.time * 25 * m.dir + o.id : m.dir * 0.4 + o.id;
+              this.q.setFromAxisAngle(this.up, ang);
+              const rx = m.x * scale, rz = m.z * scale;
+              this.m4.compose(this.v.set(wx + rx * cy - rz * sy, wy + m.y * scale, wz + rx * sy + rz * cy), this.q, this.sv.set(scale, scale, scale));
+              this.rotorPool(m.r, m.b).push(this.m4, nc);
+            }
           }
           if (isAir && o.airborne) {
             const gy = o.hSurf;
@@ -570,11 +662,34 @@ export class Units {
             this.shadowPool.push(this.m4, this.col.set(0xffffff));
           }
         };
-        for (let i = 0; i < f.members.length; i++) {
-          const [lx, lz] = f.members[i];
-          place(f.kind, lx, lz, ms, (i % 3) * 0.04);
+        const info = o.info;
+        const dc = Math.hypot(o.rx - cp.x, o.ry - cp.y, o.rz - cp.z);
+        if (!o.embarked && info.main && dc < this.detailDist && this.detailOK(info.main)) {
+          nDetail++;
+          const bm = builtModel(info.main)!;
+          const pool = this.designPool(info.main);
+          const rot = bm.rotors.length ? bm.rotors : null;
+          const members = info.members ?? f.members;
+          const ms = s * f.scale * info.mscale;
+          for (let i = 0; i < members.length; i++) {
+            const [lx, lz] = members[i];
+            place(pool, rot, false, lx, lz, ms, (i % 3) * 0.04);
+          }
+          if (info.extra && this.detailOK(info.extra)) {
+            const at = f.extra?.at ?? [-0.36, 0];
+            const eb = builtModel(info.extra)!;
+            place(this.designPool(info.extra), eb.rotors.length ? eb.rotors : null, false, at[0], at[1], s * 0.42, 0);
+          } else if (f.extra) place(this.pool(f.extra.kind), null, f.extra.kind === 'heli', f.extra.at[0], f.extra.at[1], s * 0.42, 0);
+        } else {
+          nCat++;
+          const ms = s * f.scale;
+          const pool = this.pool(f.kind);
+          for (let i = 0; i < f.members.length; i++) {
+            const [lx, lz] = f.members[i];
+            place(pool, null, f.kind === 'heli', lx, lz, ms, (i % 3) * 0.04);
+          }
+          if (f.extra) place(this.pool(f.extra.kind), null, f.extra.kind === 'heli', f.extra.at[0], f.extra.at[1], s * 0.42, 0);
         }
-        if (f.extra) place(f.extra.kind, f.extra.at[0], f.extra.at[1], s * 0.42, 0);
         if (this.selected.has(o.id)) {
           this.q.identity();
           const rr = s * 0.95;
@@ -592,6 +707,20 @@ export class Units {
         this.ringPool.push(this.m4, this.col.set(0x7dff6a));
       }
     }
+    this.stats.detailKeys = this.usedKeys.size;
+    this.stats.detailUnits = nDetail;
+    this.stats.categoryUnits = nCat;
+    // Release instanced meshes of models not drawn for a while (geometry stays cached).
+    if (this.frame % 120 === 0) {
+      for (const [k, fu] of this.poolUsed) {
+        if (this.frame - fu > 1800 && !k.startsWith('k:')) {
+          const p = this.pools.get(k);
+          if (p) { this.group.remove(p.mesh); p.mesh.dispose(); this.pools.delete(k); }
+          this.poolUsed.delete(k);
+        }
+      }
+    }
+    this.stats.pools = this.pools.size;
     for (const p of this.pools.values()) p.finish();
     this.ringPool.finish();
     this.shadowPool.finish();

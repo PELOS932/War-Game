@@ -13,4 +13,8 @@ export const showLoadingScreen: ShowLoadingScreen = loadingScreen;
 export const showNationSelect: ShowNationSelect = nationSelect;
 export const createGameUI: CreateGameUI = gameUI;
 
+export { showLeaderCreator } from './leaderCreator';
+export { showIdeologySelect } from './ideologySelect';
+export { drawLeaderPortrait, leaderPortraitURL } from './leaderPortrait';
+
 export type { GameUI, LoadingScreen, MainMenuCallbacks } from './api';
