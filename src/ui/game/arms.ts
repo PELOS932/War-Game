@@ -111,11 +111,18 @@ export function armsMarketView(ctx: Ctx): ArmsMarketView {
   sellerSel.addEventListener('change', () => { seller = Number(sellerSel.value); renderTable(); });
   const qty = h('input', { class: 'sc-input num', type: 'number', min: '1', max: '20', value: '1', style: 'width:48px' }) as HTMLInputElement;
   qty.addEventListener('keydown', (e) => e.stopPropagation());
-  qty.addEventListener('input', () => renderDetailTotals());
+  qty.addEventListener('input', () => {
+    renderDetailTotals();
+    tableHost.querySelectorAll('button.buyn').forEach((b) => { b.textContent = 'Buy ×' + nQty(); });
+  });
   const info = h('div', { class: 'sc-dim', style: 'font-size:10.5px;margin:2px 0' });
   const tableHost = h('div', { class: 'sc-inset sc-scroll', style: 'max-height:250px' });
   const detail = h('div', { class: 'sc-inset', style: 'padding:6px;margin-top:6px' });
 
+  let counts = [0, 0];
+  const updateInfo = () => {
+    setText(info, `${counts[0]} offers${counts[0] > counts[1] ? ` (showing the best ${counts[1]} — refine the filters)` : ''} · funds: ${money(Math.max(0, ctx.me.treasury) + ctx.me.militaryFund)} · instant delivery to your capital, airbases and ports`);
+  };
   const filtered = (): ArmsOffer[] => {
     const out: ArmsOffer[] = [];
     for (const o of offers) {
@@ -191,7 +198,8 @@ export function armsMarketView(ctx: Ctx): ArmsMarketView {
     clear(tableHost);
     const list = filtered();
     const shown = list.slice(0, 120);
-    setText(info, `${list.length} offers${list.length > shown.length ? ` (showing the best ${shown.length} — refine the filters)` : ''} · funds: ${money(Math.max(0, ctx.me.treasury) + ctx.me.militaryFund)} · instant delivery to your capital, airbases and ports`);
+    counts = [list.length, shown.length];
+    updateInfo();
     if (!shown.length) {
       tableHost.appendChild(h('div', { class: 'sc-empty' }, offers.length ? 'No offers match the filters.' : 'No nation currently offers arms to you (relations too low, or at war).'));
       renderDetail();
@@ -204,7 +212,7 @@ export function armsMarketView(ctx: Ctx): ArmsMarketView {
       const d = ctx.state.designs.get(o.designId)!;
       const s = ctx.state.nations[o.seller];
       const isSel = sel && sel.seller === o.seller && sel.designId === o.designId;
-      const btn = h('button', { class: 'sc-btn sm primary' }, 'Buy ×' + nQty());
+      const btn = h('button', { class: 'sc-btn sm primary buyn' }, 'Buy ×' + nQty());
       btn.addEventListener('click', (e) => { e.stopPropagation(); buy(o, nQty()); });
       const rel = game.relation(ctx.player, o.seller);
       const tr = h('tr', { class: 'clickable' + (isSel ? ' sel' : '') },
@@ -277,7 +285,7 @@ export function armsMarketView(ctx: Ctx): ArmsMarketView {
       renderFilters();
       renderTable();
     } else {
-      setText(info, info.textContent ?? '');
+      updateInfo();
     }
   }
   return { el, update };

@@ -115,6 +115,31 @@ export const DESIGNS: MilitaryDesign[] = [...designMap.values()];
 
 // ---- id resolution -------------------------------------------------------------------
 const resolveCache = new Map<string, string | null>();
+const norm = (x: string): string => x.replace(/[^a-z0-9]/g, '');
+let normIndex: [string, string][] | null = null;
+/** Closest defined design for an unknown id: normalized-prefix relative, else token subset. */
+function fuzzyMatch(id: string): string | null {
+  const nm = norm(id);
+  if (nm.length < 4) return null;
+  if (!normIndex) normIndex = [...designMap.keys()].map((k) => [k, norm(k)] as [string, string]);
+  let best: string | null = null, bestScore = Infinity;
+  for (const [k, nk] of normIndex) {
+    let score = Infinity;
+    if (nk === nm) score = 0;
+    else if (nk.startsWith(nm)) score = 1 + (nk.length - nm.length) / 100;
+    else if (nm.startsWith(nk) && nk.length >= 4) score = 2 + (nm.length - nk.length) / 100;
+    if (score < bestScore) { bestScore = score; best = k; }
+  }
+  if (best) return best;
+  const toks = id.split('_').filter((t) => t.length > 1);
+  if (toks.length < 2) return null;
+  for (const k of designMap.keys()) {
+    const kt = new Set(k.split('_'));
+    if (toks.every((t) => kt.has(t))) { const sc = kt.size; if (sc < bestScore || best === null) { best = k; bestScore = sc; } }
+  }
+  return best;
+}
+
 /** Real id, generic sim id, alias or unique prefix relative; null when unknown. */
 function resolveId(id: string, nation: string): string | null {
   if (designMap.has(id)) return id;
@@ -123,13 +148,8 @@ function resolveId(id: string, nation: string): string | null {
   if (r === undefined) {
     r = null;
     const alias = ALIASES[id];
-    if (alias && designMap.has(alias)) r = alias;
-    else {
-      let bestLen = Infinity;
-      for (const k of designMap.keys()) {
-        if ((k.startsWith(id + '_') || id.startsWith(k + '_')) && k.length < bestLen) { r = k; bestLen = k.length; }
-      }
-    }
+    if (alias && (designMap.has(alias) || genericIds.has(alias))) r = alias;
+    else r = fuzzyMatch(id);
     resolveCache.set(id, r);
   }
   if (r) report.resolved.push({ nation, from: id, to: r });
