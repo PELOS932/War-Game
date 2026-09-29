@@ -4,3 +4,4 @@ dist/
 .DS_Store
 /preview/
 scripts/_*.mjs
+scripts/_*.ts
