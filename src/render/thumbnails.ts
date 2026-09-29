@@ -396,7 +396,7 @@ function processQueue(): void {
   const t0 = performance.now();
   let n = 0;
   while (queue.length && n < MAX_PER_FRAME && (n === 0 || performance.now() - t0 < FRAME_BUDGET_MS)) {
-    const id = queue.shift()!;
+    const id = queue.pop()!; // newest first: the panel the player just opened fills in first
     queued.delete(id);
     if (cache.has(id)) continue;
     let res: { sm: string; lg: string } | null = null;

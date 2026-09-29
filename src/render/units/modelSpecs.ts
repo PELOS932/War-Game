@@ -155,12 +155,12 @@ const FH70: TowedSpec = { g: 'towed', bl: 0.62, r: 0.017, trails: 2, wheels: 2, 
 const LIGHTGUN: TowedSpec = { g: 'towed', bl: 0.38, r: 0.012, trails: 2, wheels: 2, w: 0.32, shield: false };
 
 const HIMARS: VehSpec = { g: 'veh', ch: 'truck', L: 0.95, W: 0.46, H: 0.25, n: 3, cab: 'flat', cabL: 0.22, pay: { k: 'mlrs', pods: 1, rows: 2, cols: 3, l: 0.38, a: 0.1, tr: 0.058 } };
-const M270: VehSpec = { g: 'veh', ch: 'tracked', L: 1, W: 0.56, H: 0.2, n: 6, nose: 'blunt', add: ['cabin'], pay: { k: 'mlrs', pods: 2, rows: 2, cols: 3, l: 0.46, a: 0.08, tr: 0.06 } };
+const M270: VehSpec = { g: 'veh', ch: 'tracked', L: 1, W: 0.56, H: 0.2, n: 6, nose: 'blunt', add: ['cabin'], pay: { k: 'mlrs', pods: 2, rows: 2, cols: 3, l: 0.42, a: 0.08, tr: 0.052 } };
 const GRAD: VehSpec = { g: 'veh', ch: 'truck', L: 0.95, W: 0.44, H: 0.25, n: 3, cab: 'bonnet', cabL: 0.3, pay: { k: 'mlrs', pods: 1, rows: 4, cols: 10, l: 0.46, a: 0.16, open: true, tr: 0.036 } };
 const URAGAN: VehSpec = { g: 'veh', ch: 'truck', L: 1.05, W: 0.46, H: 0.26, n: 4, cab: 'flat', cabL: 0.22, pay: { k: 'mlrs', pods: 1, rows: 3, cols: 6, l: 0.6, a: 0.14, open: true, tr: 0.06 } };
 const SMERCH: VehSpec = { g: 'veh', ch: 'truck', L: 1.1, W: 0.48, H: 0.27, n: 4, cab: 'maz', cabL: 0.24, pay: { k: 'mlrs', pods: 1, rows: 3, cols: 4, l: 0.66, a: 0.15, open: true, tr: 0.085 } };
 const TOS1: VehSpec = V(T72, { add: ['cabin'], tur: undefined, pay: { k: 'mlrs', pods: 1, rows: 3, cols: 5, l: 0.55, a: 0.2, tr: 0.06 } });
-const PHL16: VehSpec = { g: 'veh', ch: 'truck', L: 1.1, W: 0.48, H: 0.27, n: 4, cab: 'flat', cabL: 0.24, pay: { k: 'mlrs', pods: 2, rows: 2, cols: 3, l: 0.62, a: 0.12, tr: 0.075 } };
+const PHL16: VehSpec = { g: 'veh', ch: 'truck', L: 1.1, W: 0.48, H: 0.27, n: 4, cab: 'flat', cabL: 0.22, pay: { k: 'mlrs', pods: 2, rows: 2, cols: 3, l: 0.5, a: 0.1, tr: 0.058 } };
 const ASTROS: VehSpec = V(PHL16, { n: 3, L: 1, cabL: 0.24 });
 const CHUNMOO: VehSpec = V(PHL16, { cab: 'armored' });
 
@@ -555,11 +555,13 @@ function deriveTransport(d: UnitDesign, st: Style, r: Rng): ModelSpec {
 function deriveDrone(d: UnitDesign, st: Style, r: Rng): DesignVisual {
   const n = (d.name + ' ' + d.description).toLowerCase();
   const small = { members: TRI_M, scale: 0.55 };
-  if (/loiter|kamikaze|one-way|munition|suicide/.test(n) || d.cost < 110) {
+  if (/mothership|carrier drone/.test(n)) return { main: A(TWINJET_TT, { ck: null, r: 0.06 }), scale: 1.1 };
+  if (/loiter|kamikaze|one-way|munition|suicide/.test(n)) {
     if (/lancet|switchblade|warmate|kub|x-wing/.test(n)) return { main: LANCET, ...small };
     if (/quad|fpv|rotor/.test(n)) return { main: SMALLUAV, ...small };
     return { main: A(SHAHED, { r: r.v(0.03) }), ...small };
   }
+  if (d.cost < 110 && d.speedKmh < 300) return { main: SMALLUAV, members: [[0.15, -0.2], [-0.12, 0.2]], scale: 0.7 };
   if (/high-altitude|hale|global hawk|triton|wz-7|soaring/.test(n)) return { main: GLOBALHAWK };
   if (d.speedKmh > 520 || /jet|ucav|wingman|stealth|combat aircraft/.test(n)) {
     if (/flying.wing|tailless|okhotnik|neuron|gj-11|sharp sword|x-47|stingray/.test(n) || d.stealth >= 0.6) return { main: FLYWING_UCAV };
@@ -1253,6 +1255,12 @@ const HAND: Record<string, Entry> = {
   lancet3: { main: LANCET, members: TRI_M, scale: 0.5 }, kub_bla: { main: A(SHAHED, { r: 0.03, wing: { x: 0.2, root: 0.5, tip: 0.1, span: 0.32, sweep: 0.4, y: 0 }, vt: undefined }), members: TRI_M, scale: 0.5 },
   harop: { main: A(SHAHED, { cn: { x: 0.35, root: 0.1, span: 0.12 } }), members: TRI_M, scale: 0.6 },
   warmate_pol: { main: LANCET, members: TRI_M, scale: 0.5 },
+  orion_uav: REAPER, gj2_pla: A(REAPER, { vt: { n: 2, x: -0.18, root: 0.09, tip: 0.045, h: 0.1, sweep: 0.05, cant: 0.8, z: 0.012, y: 0.5 } }),
+  forpost_r: { main: SMALLUAV, members: [[0.15, -0.2], [-0.12, 0.2]], scale: 0.7 }, orbiter_3: { main: A(SMALLUAV, { nprop: 0, eng: { n: 1, k: 'pusher', r: 0.05, l: 0, x: 0, blades: 2 }, hs: undefined }), members: TRI_M, scale: 0.5 },
+  karrar_ucav: A(WINGMAN, { facet: 10, bw: 0, eng: { n: 1, k: 'top', r: 0.03, l: 0.2, x: -0.25, z: [0] }, int: 'none' }),
+  chn_jiutian: { main: A(TWINJET_TT, { ck: null, r: 0.06 }), scale: 1.1 },
+  ababil_3: HARFANG_TB, rustom2: A(REAPER, { eng: { n: 2, k: 'prop', r: 0.02, l: 0.1, x: 0.14, z: [0.1, -0.1], blades: 3 } }), archer_ng: REAPER,
+  liutyi_ukr: A(SMALLUAV, { len: 0.8, nprop: 0.08 }), fp1_ukr: { main: A(SMALLUAV, { len: 0.8 }), members: TRI_M, scale: 0.55 },
   orlan10: { main: SMALLUAV, members: [[0.15, -0.2], [-0.12, 0.2]], scale: 0.7 },
   // ---- Surface combatants ----
   arleigh_burke_flt1: S(BURKE, { heli: 0.12, hangar: 0 }),
@@ -1483,4 +1491,9 @@ function deriveVisual(d: UnitDesign, st: Style, r: Rng): DesignVisual {
 /** Stable key of a spec (identical specs share geometry). */
 export function specKey(s: ModelSpec): string {
   return JSON.stringify(s, (_k, v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v));
+}
+
+/** Number of distinct hand-authored parameter sets (before per-design variation). */
+export function handBaseCount(): number {
+  return new Set(Object.values(HAND).map((e) => specKey(isVisual(e) ? e.main : e))).size;
 }

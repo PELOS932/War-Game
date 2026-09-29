@@ -13,13 +13,15 @@ async function main(): Promise<void> {
   let nation = 'Germany';
   let port = 5176;
   let out = '/tmp/claude-0/render/app';
+  let profile = '/tmp/claude-0/render/profile-app';
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--port') port = Number(args[++i]);
     else if (args[i] === '--out') out = args[++i];
+    else if (args[i] === '--profile') profile = args[++i];
     else nation = args[i];
   }
   mkdirSync(out, { recursive: true });
-  const ctx = await chromium.launchPersistentContext('/tmp/claude-0/render/profile-app', {
+  const ctx = await chromium.launchPersistentContext(profile, {
     executablePath: '/opt/pw-browsers/chromium',
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
     viewport: { width: 1280, height: 720 },

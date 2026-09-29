@@ -32,7 +32,7 @@ const STRIDE = 10; // x y z w h d angle r g b
 /** World-unit height of one storey (already exaggerated so blocks read from above). */
 const ST = 0.0026;
 /** Fabric extends a bit past the ground-shader city disc so cities read as solid. */
-const RB = 1.18;
+const RB = 1.3;
 
 /** Metres → world height units with the game's vertical exaggeration (soft-capped for supertalls). */
 function mToU(m: number): number {
@@ -535,7 +535,7 @@ export class Cities {
 
     // Tile → overlapping cities index.
     for (const c of ctx.cities) {
-      const ext = c.r * 2.0;
+      const ext = c.r * 2.2;
       const tx0 = Math.floor((c.x - ext) / TILE_SIZE), tx1 = Math.floor((c.x + ext) / TILE_SIZE);
       const tz0 = Math.floor((c.z - ext) / TILE_SIZE), tz1 = Math.floor((c.z + ext) / TILE_SIZE);
       for (let tz = tz0; tz <= tz1; tz++) for (let tx = tx0; tx <= tx1; tx++) {
@@ -916,8 +916,9 @@ export class Cities {
     const d = cam.dist;
     // Zoom-dependent exaggeration of the far skyline (cities must read at the default zoom).
     const zf = smoothstep(3, 40, d);
-    this.farU.uHeightMul.value = 1 + 3.0 * zf;
-    this.farU.uFootMul.value = 1 + 1.4 * zf;
+    const zf2 = smoothstep(40, 160, d); // keep cities legible from orbit-ish distances
+    this.farU.uHeightMul.value = 1 + 3.4 * zf + 3.0 * zf2;
+    this.farU.uFootMul.value = 1 + 3.0 * zf + 2.4 * zf2;
     this.farU.uFloorH.value = 0.012 * (1 + zf);
     this.updateLandmarks(d);
     this.farGroup.visible = d < 170;
