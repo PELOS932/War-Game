@@ -377,8 +377,8 @@ vec3 applyOverlay(inout vec3 col, vec3 wp, float pix, bool water) {
   float farT = smoothstep(4.0, 120.0, uCamDist);
   vec3 pc = owner > 0 ? texelFetch(uPalette, ivec2(owner, 0), 0).rgb : vec3(0.0);
   pc = pow(pc, vec3(2.2));
-  if (uMapMode == 1 && owner > 0 && !water) {
-    float a = mix(0.0, 0.4, smoothstep(1.2, 70.0, uCamDist)) * uOverlayAlpha;
+  if (uMapMode == 1 && owner > 0) {
+    float a = (water ? 0.34 : mix(0.0, 0.4, smoothstep(1.2, 70.0, uCamDist))) * uOverlayAlpha;
     col = mix(col, pc * 0.9 + col * 0.25, a);
     // Occupied territory: diagonal hatching in the original owner's colour.
     if (core != owner && core > 0) {
@@ -394,7 +394,7 @@ vec3 applyOverlay(inout vec3 col, vec3 wp, float pix, bool water) {
       col = mix(col, pow(rc.rgb, vec3(2.2)), rc.a * uOverlayAlpha);
     }
   }
-  if (owner > 0 && !water) {
+  if (owner > 0) {
     // Borders: nation-coloured inner glow + dark crisp line.
     vec3 gc = uMapMode == 0 ? vec3(1.0, 0.92, 0.6) : pc;
     col = mix(col, gc * 1.1, borderGlow * borderGlow * mix(0.25, 0.55, farT) * uOverlayAlpha);

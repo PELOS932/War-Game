@@ -129,6 +129,24 @@ export function generateEarth(progress: Progress = () => {}): WorldData {
     leader: b.leader ? byCode.get(b.leader) ?? -1 : -1,
   }));
 
+  // --- Territorial waters (Supreme Ruler style): sea hexes near a coast belong to the nearest coastal nation.
+  {
+    const dist = new Int8Array(nHex).fill(-1);
+    const q: number[] = [];
+    for (let i = 0; i < nHex; i++) if (hexOwner[i] && isLand(i)) { dist[i] = 0; q.push(i); }
+    for (let k = 0; k < q.length; k++) {
+      const c = q[k];
+      if (dist[c] >= 3) continue;
+      for (let d = 0; d < 6; d++) {
+        const m = grid.neighbours[c * 6 + d];
+        if (m < 0 || dist[m] >= 0 || isLand(m)) continue;
+        dist[m] = dist[c] + 1;
+        hexOwner[m] = hexOwner[c];
+        q.push(m);
+      }
+    }
+  }
+
   // --- Cities --------------------------------------------------------------------
   progress('Founding cities', 0);
   const hexCity = new Int32Array(nHex).fill(-1);
@@ -190,10 +208,10 @@ export function generateEarth(progress: Progress = () => {}): WorldData {
   const cityPop = new Float64Array(nations.length);
   for (const c of cities) cityPop[c.nation] += c.population;
   const habSum = new Float64Array(nations.length);
-  for (let i = 0; i < nHex; i++) if (hexOwner[i]) habSum[hexOwner[i] - 1] += Math.pow(hexLayer.habitability[i], 1.5) + 0.01;
+  for (let i = 0; i < nHex; i++) if (hexOwner[i] && isLand(i)) habSum[hexOwner[i] - 1] += Math.pow(hexLayer.habitability[i], 1.5) + 0.01;
   for (let i = 0; i < nHex; i++) {
     const o = hexOwner[i];
-    if (!o) continue;
+    if (!o || !isLand(i)) continue;
     const nt = nations[o - 1];
     const total = nt.population * 1000;
     const rural = Math.max(total * 0.15, total - Math.min(cityPop[o - 1], total * 0.85));

@@ -2,7 +2,7 @@ import type { WorldData } from '../worldgen/types';
 import { loadCachedWorld, saveCachedWorld } from './cache';
 
 /** Bump when the world builder output changes so stale caches are ignored. */
-export const WORLD_CACHE_KEY = 'earth-v5';
+export const WORLD_CACHE_KEY = 'earth-v6';
 
 type Progress = (stage: string, fraction: number) => void;
 
