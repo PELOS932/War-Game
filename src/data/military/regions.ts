@@ -1,13 +1,22 @@
 /**
- * Region wiring: the four regional data files are aggregated here. Each region
- * exports `DESIGNS` / `INVENTORY` (see schema.ts). Until a regional file exists
- * the tiny stub keeps the game running.
+ * Region wiring: the regional data files are aggregated here. Each region
+ * exports `DESIGNS` / `INVENTORY` (see schema.ts).
  */
 import type { MilitaryDesign, NationInventory } from './schema';
-import * as stub from './stub';
+import * as americas from './americas';
+import * as asiaPacific from './asia_pacific';
+import * as eurasia from './eurasia_mideast_africa';
 
 export interface RegionSource { name: string; DESIGNS: MilitaryDesign[]; INVENTORY: NationInventory[] }
 
 export const REGIONS: RegionSource[] = [
-  { name: 'stub', DESIGNS: stub.DESIGNS, INVENTORY: stub.INVENTORY },
+  { name: 'americas', ...americas },
+  { name: 'europe', DESIGNS: [], INVENTORY: [] }, // TODO wire europe.ts when it exists
+  { name: 'eurasia_mideast_africa', ...eurasia },
+  { name: 'asia_pacific', ...asiaPacific },
 ];
+
+/** Manual id aliases (id used by one region -> id defined by another). */
+export const ALIASES: Record<string, string> = {
+  f16v: 'f16v_block70',
+};

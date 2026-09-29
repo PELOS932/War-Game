@@ -26,13 +26,12 @@ export function buildable(state: GameState, n: Nation): Cache {
   const cats = new Set<number>();
   for (const id of own) {
     const d = state.designs.get(id);
-    if (d && !d.future) cats.add(d.category);
+    if (d && !d.future && d.real) cats.add(d.category);
   }
   const set = new Set<string>();
   for (const d of state.designs.values()) {
-    if (d.real) {
-      if (own.has(d.id)) set.add(d.id);
-    } else if (!cats.has(d.category) && genericUnlocked(n, d)) set.add(d.id);
+    if (own.has(d.id)) set.add(d.id); // real designs and generic ones a region lists as produced
+    else if (!d.real && !cats.has(d.category) && genericUnlocked(n, d)) set.add(d.id);
   }
   const res = { sig, set, list: [...set] };
   cache.set(n, res);

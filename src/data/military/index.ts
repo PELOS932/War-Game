@@ -3,9 +3,9 @@
  * id, validates references and exposes lookup helpers. Pure data (no sim state).
  */
 import { CATEGORY_CLASS, UnitCategory, type ArmorType, type Mobility } from '../../sim/types';
-import { designId } from '../../sim/data/units';
+import { UNIT_DESIGNS, designId } from '../../sim/data/units';
 import type { MilitaryDesign, NationInventory } from './schema';
-import { REGIONS } from './regions';
+import { REGIONS, ALIASES } from './regions';
 
 export type { MilitaryDesign, NationInventory } from './schema';
 
@@ -16,13 +16,17 @@ export interface MilitaryReport {
   missingInventoryIds: { nation: string; id: string }[]; // dropped, generic OOB fills the category
   missingProduceIds: { nation: string; id: string }[];
   missingPredecessors: { id: string; predecessor: string }[];
+  /** Ids not defined anywhere but resolved to a close design (alias / prefix match). */
+  resolved: { nation: string; from: string; to: string }[];
+  /** Inventory/produce entries that use a generic sim design id directly (valid). */
+  genericRefs: number;
   duplicateInventories: string[];
   totals: { designs: number; future: number; nations: number; units: number };
 }
 
 const report: MilitaryReport = {
   regions: [], duplicateIds: [], invalidDesigns: [], missingInventoryIds: [], missingProduceIds: [],
-  missingPredecessors: [], duplicateInventories: [], totals: { designs: 0, future: 0, nations: 0, units: 0 },
+  missingPredecessors: [], resolved: [], genericRefs: 0, duplicateInventories: [], totals: { designs: 0, future: 0, nations: 0, units: 0 },
 };
 
 const ARMORS: ArmorType[] = ['soft', 'hard', 'air', 'naval', 'sub'];
@@ -86,12 +90,36 @@ for (const r of REGIONS) {
   }
 }
 for (const d of designMap.values()) {
-  if (d.predecessor && !designMap.has(d.predecessor)) {
+  if (d.predecessor && !designMap.has(d.predecessor) && !genericIds.has(d.predecessor)) {
     report.missingPredecessors.push({ id: d.id, predecessor: d.predecessor });
     d.predecessor = undefined;
   }
 }
 export const DESIGNS: MilitaryDesign[] = [...designMap.values()];
+
+// ---- id resolution -------------------------------------------------------------------
+const genericIds = new Set(UNIT_DESIGNS.map((d) => d.id));
+const resolveCache = new Map<string, string | null>();
+/** Real id, generic sim id, alias or unique prefix relative; null when unknown. */
+function resolveId(id: string, nation: string): string | null {
+  if (designMap.has(id)) return id;
+  if (genericIds.has(id)) { report.genericRefs++; return id; }
+  let r = resolveCache.get(id);
+  if (r === undefined) {
+    r = null;
+    const alias = ALIASES[id];
+    if (alias && designMap.has(alias)) r = alias;
+    else {
+      let bestLen = Infinity;
+      for (const k of designMap.keys()) {
+        if ((k.startsWith(id + '_') || id.startsWith(k + '_')) && k.length < bestLen) { r = k; bestLen = k.length; }
+      }
+    }
+    resolveCache.set(id, r);
+  }
+  if (r) report.resolved.push({ nation, from: id, to: r });
+  return r;
+}
 
 // ---- inventories ------------------------------------------------------------------
 const invMap = new Map<string, NationInventory>();
@@ -99,13 +127,17 @@ for (const r of REGIONS) {
   for (const raw of r.INVENTORY) {
     const inv: NationInventory = { code: raw.code, units: [], produces: [] };
     for (const u of raw.units ?? []) {
-      if (!designMap.has(u.id)) { report.missingInventoryIds.push({ nation: raw.code, id: u.id }); continue; }
+      const rid = resolveId(u.id, raw.code);
+      if (!rid) { report.missingInventoryIds.push({ nation: raw.code, id: u.id }); continue; }
       const c = Math.floor(u.count);
-      if (c > 0) inv.units.push({ id: u.id, count: c });
+      if (c <= 0) continue;
+      const e = inv.units.find((x) => x.id === rid);
+      if (e) e.count += c; else inv.units.push({ id: rid, count: c });
     }
     for (const id of raw.produces ?? []) {
-      if (!designMap.has(id)) { report.missingProduceIds.push({ nation: raw.code, id }); continue; }
-      if (!inv.produces.includes(id)) inv.produces.push(id);
+      const rid = resolveId(id, raw.code);
+      if (!rid) { report.missingProduceIds.push({ nation: raw.code, id }); continue; }
+      if (!inv.produces.includes(rid)) inv.produces.push(rid);
     }
     const prev = invMap.get(raw.code);
     if (prev) {
