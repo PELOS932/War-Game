@@ -242,8 +242,23 @@ function buildFallback(cat: UnitCategory): THREE.Object3D {
     m.position.set(x, y, z);
     grp.add(m);
   };
-  add(buildModel(f.kind));
-  if (f.kind === 'heli') add(rotorGeometry(), 0.12, 0.4, 0);
+  if (f.kind === 'soldier') {
+    // A lone figure reads poorly: show the fire team (+ its vehicle) in model units.
+    const s = f.scale;
+    for (const [mx, mz] of f.members.slice(0, 4)) {
+      const g = buildModel('soldier');
+      g.scale(s, s, s);
+      add(g, mx, 0, mz);
+    }
+    if (f.extra) {
+      const g = buildModel(f.extra.kind);
+      g.scale(0.6, 0.6, 0.6);
+      add(g, f.extra.at[0] - 0.55, 0, f.extra.at[1] - 0.35);
+    }
+  } else {
+    add(buildModel(f.kind));
+    if (f.kind === 'heli') add(rotorGeometry(), 0.12, 0.4, 0);
+  }
   grp.userData.ownedResources = true;
   return grp;
 }
