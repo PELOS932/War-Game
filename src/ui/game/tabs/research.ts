@@ -7,6 +7,7 @@ import { bar, slider } from '../../widgets';
 import type { ResearchSlot, TechCategory, TechDef } from '../../../sim/types';
 import type { Ctx } from '../context';
 import { designSheet } from '../arms';
+import { designThumbHTML } from '../../thumbs';
 import type { TabView } from '../panel';
 
 type Cat = TechCategory | 'national';
@@ -212,7 +213,7 @@ export function researchTab(ctx: Ctx): TabView {
     for (const id of t.unlocksDesigns.slice(0, 8)) {
       const d = ctx.state.designs.get(id);
       if (d && d.real) unlocks.appendChild(designSheet(ctx, d));
-      else if (d) unlocks.appendChild(h('div', { class: 'sc-row', style: 'gap:5px' }, h('span', { html: natoSymbol(d.category, 'friend', 20) }), d.name));
+      else if (d) unlocks.appendChild(h('div', { class: 'sc-row', style: 'gap:5px' }, h('span', { html: designThumbHTML(d, { w: 36, h: 24 }) }), d.name));
     }
     if (t.unlocksDesigns.length > 8) unlocks.appendChild(h('span', { class: 'sc-dim' }, `+${t.unlocksDesigns.length - 8} more designs`));
     const action = known

@@ -4,7 +4,8 @@
  * "Sell units" dialog.
  */
 import { h, setText, setClass, clear, fmtMillions, fmtNum, escapeHTML, setTip } from '../dom';
-import { icon, natoSymbol } from '../icons';
+import { icon } from '../icons';
+import { designThumbHTML } from '../thumbs';
 import { flagImg, flagHTML, relColor, relLabel } from '../widgets';
 import { dialog } from '../dialogs';
 import { CATEGORY_CLASS, CATEGORY_NAMES, UnitClass, type UnitDesign } from '../../sim/types';
@@ -33,7 +34,7 @@ export function designSheet(ctx: Ctx, d: UnitDesign): HTMLElement {
   }
   const el = h('div', null,
     h('div', { class: 'sc-row', style: 'gap:8px;margin-bottom:4px' },
-      h('span', { html: natoSymbol(d.category, 'friend', 44) }),
+      h('span', { html: designThumbHTML(d, { w: 120, h: 80 }) }),
       h('div', { class: 'sc-grow' },
         h('div', { style: 'font-weight:800;font-size:13px;color:#fff' }, d.name),
         h('div', { class: 'sc-dim' }, `${CATEGORY_NAMES[d.category]} · Gen ${d.generation} · ${d.armor} armor · ${d.mobility}`),
@@ -216,7 +217,7 @@ export function armsMarketView(ctx: Ctx): ArmsMarketView {
       btn.addEventListener('click', (e) => { e.stopPropagation(); buy(o, nQty()); });
       const rel = game.relation(ctx.player, o.seller);
       const tr = h('tr', { class: 'clickable' + (isSel ? ' sel' : '') },
-        h('td', { html: natoSymbol(d.category, 'friend', 20) }),
+        h('td', { style: 'padding:1px 3px', html: designThumbHTML(d, { w: 42, h: 28 }) }),
         h('td', { style: 'max-width:130px;overflow:hidden;text-overflow:ellipsis' }, d.name, d.future ? h('span', { class: 'sc-tag amber', style: 'margin-left:3px' }, 'NEW') : null),
         h('td', { html: `${flagHTML(s.flag, 10)} ${escapeHTML(s.code)} <span style="color:${relColor(rel)}">●</span>` }),
         h('td', null, keyStat(d)),

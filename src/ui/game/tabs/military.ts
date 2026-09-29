@@ -4,6 +4,7 @@
  */
 import { h, setText, setClass, KeyedList, fmtNum, fmtCompact, fmtMoney, escapeHTML, setTip } from '../../dom';
 import { icon, natoSymbol } from '../../icons';
+import { designThumbHTML } from '../../thumbs';
 import { bar, Bar } from '../../widgets';
 import { CATEGORY_NAMES, UnitCategory, UnitClass, type Unit, type ProductionItem } from '../../../sim/types';
 import { designOf, orderText, hexPlace, type Ctx } from '../context';
@@ -65,7 +66,7 @@ export function militaryTab(ctx: Ctx): TabView {
   const listEl = h('div', { class: 'sc-inset', style: 'min-height:80px' });
   const empty = h('div', { class: 'sc-empty sc-hidden' }, 'No units match the filter.');
 
-  interface URow { el: HTMLElement; str: Bar; eff: Bar; name: HTMLElement; sub: HTMLElement; status: HTMLElement; sym: HTMLElement; symCat: number }
+  interface URow { el: HTMLElement; str: Bar; eff: Bar; name: HTMLElement; sub: HTMLElement; status: HTMLElement; sym: HTMLElement; symId: string }
   const list = new KeyedList<Item>(listEl, (it) => (it.kind === 'group' ? 'g' + it.cat : 'u' + it.u.id), (it) => {
     if (it.kind === 'group') {
       const lbl = h('span');
@@ -101,7 +102,7 @@ export function militaryTab(ctx: Ctx): TabView {
     const sub = h('small');
     const status = h('div', { class: 'st' });
     const sym = h('span');
-    const row: URow = { el: h('div', { class: 'sc-urow' }), str, eff, name, sub, status, sym, symCat: -1 };
+    const row: URow = { el: h('div', { class: 'sc-urow' }), str, eff, name, sub, status, sym, symId: '' };
     row.el.append(sym, h('div', { class: 'nm' }, name, sub), h('div', { class: 'sc-col', style: 'gap:2px' }, str.el, eff.el), status);
     const uid = it.u.id;
     row.el.addEventListener('click', (e) => {
@@ -124,9 +125,9 @@ export function militaryTab(ctx: Ctx): TabView {
         if (it2.kind !== 'unit') return;
         const u = it2.u;
         const d = designOf(ctx.state, u);
-        if (d && row.symCat !== d.category) {
-          row.symCat = d.category;
-          sym.innerHTML = natoSymbol(d.category, 'friend', 26);
+        if (d && row.symId !== d.id) {
+          row.symId = d.id;
+          sym.innerHTML = designThumbHTML(d);
         }
         setText(name, u.name);
         setText(sub, d ? d.name : u.design);
@@ -158,7 +159,7 @@ export function militaryTab(ctx: Ctx): TabView {
         const d = ctx.state.designs.get(it.design);
         if (d && !symSet) {
           symSet = true;
-          sym.innerHTML = natoSymbol(d.category, 'friend', 26);
+          sym.innerHTML = designThumbHTML(d);
         }
         setText(name, `${it.count > 1 ? it.count + '× ' : ''}${d?.name ?? it.design}`);
         setText(sub, `at ${ctx.state.cities[it.cityId]?.name ?? '?'}`);

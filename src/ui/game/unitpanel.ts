@@ -3,7 +3,8 @@
  * stats, multi-selection summary, and the order buttons for the selection.
  */
 import { h, setText, setClass, clear, escapeHTML, setTip, fmtNum } from '../dom';
-import { icon, natoSymbol, IconName } from '../icons';
+import { icon, IconName } from '../icons';
+import { designThumbHTML } from '../thumbs';
 import { flagImg, bar, Bar } from '../widgets';
 import { confirm } from '../dialogs';
 import { CATEGORY_NAMES, UnitClass, type Stance, type Unit } from '../../sim/types';
@@ -162,7 +163,7 @@ export function createUnitPanel(ctx: Ctx): UnitPanel {
   let mode: 'none' | 'single' | 'multi' = 'none';
   let lastKey = '';
   let t = 0;
-  let symCat = -1;
+  let symKey = '';
   const multiRows = new Map<number, { el: HTMLElement; b: Bar }>();
 
   const statsHTML = (u: Unit) => {
@@ -206,9 +207,9 @@ export function createUnitPanel(ctx: Ctx): UnitPanel {
         const d = designOf(st, u);
         const own = u.nation === ctx.player;
         const aff = affiliation(game, ctx.player, u.nation);
-        if (d && symCat !== d.category * 10 + aff.length) {
-          symCat = d.category * 10 + aff.length;
-          sym.innerHTML = natoSymbol(d.category, aff, 54);
+        if (d && symKey !== d.id + '|' + aff) {
+          symKey = d.id + '|' + aff;
+          sym.innerHTML = designThumbHTML(d, { w: 96, h: 64, aff });
         }
         flagSlot.replaceChildren(flagImg(st.nations[u.nation]?.flag, 12));
         setText(titleTxt, own ? 'Unit Information' : `${st.nations[u.nation]?.adjective ?? ''} Unit (${aff === 'hostile' ? 'Enemy' : aff === 'ally' ? 'Allied' : 'Foreign'})`);
@@ -255,7 +256,7 @@ export function createUnitPanel(ctx: Ctx): UnitPanel {
           let r = multiRows.get(id);
           if (!r) {
             const b = bar('auto');
-            const card = h('div', { class: 'sc-up-card', html: d ? natoSymbol(d.category, 'friend', 34) : '' }, b.el);
+            const card = h('div', { class: 'sc-up-card', html: d ? designThumbHTML(d, { w: 46, h: 31 }) : '' }, b.el);
             const uid = id;
             card.addEventListener('click', (ev) => {
               if (ev.shiftKey) ctx.select(ctx.selection.filter((x) => x !== uid));

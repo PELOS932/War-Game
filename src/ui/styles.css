@@ -524,17 +524,17 @@
   background: linear-gradient(180deg, #353b34, #262a25); border: 1px solid #000; color: var(--sc-text); box-shadow: var(--sc-bevel); }
 .sc-ugroup-h:hover { color: var(--sc-amber2); }
 .sc-ugroup-h .cnt { margin-left: auto; color: var(--sc-text2); font-weight: 600; }
-.sc-urow { display: grid; grid-template-columns: 30px 1fr 64px 64px; gap: 6px; align-items: center; padding: 2px 5px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,.4); font-size: 11px; }
+.sc-urow { display: grid; grid-template-columns: 48px 1fr 64px 64px; gap: 6px; align-items: center; padding: 2px 5px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,.4); font-size: 11px; }
 .sc-urow:hover { background: rgba(240,168,48,.08); }
 .sc-urow.sel { background: var(--sc-sel); }
 .sc-urow .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-urow .nm small { display: block; color: var(--sc-text2); font-size: 10px; }
 .sc-urow .st { font-size: 10px; color: var(--sc-text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-urow .combat { color: var(--sc-neg); font-weight: 700; }
-.sc-prodrow { display: grid; grid-template-columns: 30px 1fr 90px 22px; gap: 6px; align-items: center; padding: 3px 5px; border-bottom: 1px solid rgba(0,0,0,.4); font-size: 11px; }
+.sc-prodrow { display: grid; grid-template-columns: 48px 1fr 90px 22px; gap: 6px; align-items: center; padding: 3px 5px; border-bottom: 1px solid rgba(0,0,0,.4); font-size: 11px; }
 
 /* build */
-.sc-design { display: grid; grid-template-columns: 34px 1fr auto; gap: 6px; align-items: center; padding: 3px 5px; border-bottom: 1px solid rgba(0,0,0,.4); cursor: pointer; font-size: 11px; }
+.sc-design { display: grid; grid-template-columns: 48px 1fr auto; gap: 6px; align-items: center; padding: 3px 5px; border-bottom: 1px solid rgba(0,0,0,.4); cursor: pointer; font-size: 11px; }
 .sc-design:hover { background: rgba(240,168,48,.08); }
 .sc-design.sel { background: var(--sc-sel); box-shadow: inset 2px 0 0 var(--sc-amber); }
 .sc-design .nm { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -650,9 +650,9 @@
 .sc-up-orders .grp { display: flex; gap: 2px; padding-right: 6px; margin-right: 3px; border-right: 1px solid rgba(0,0,0,.6); box-shadow: 1px 0 0 rgba(255,255,255,.05); }
 .sc-up-orders .grp:last-child { border-right: none; box-shadow: none; }
 .sc-up-multi { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px 8px; max-height: 100px; overflow-y: auto; }
-.sc-up-card { width: 44px; padding: 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; background: rgba(0,0,0,.35); border: 1px solid #000; border-radius: 2px; }
+.sc-up-card { width: 52px; padding: 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; background: rgba(0,0,0,.35); border: 1px solid #000; border-radius: 2px; }
 .sc-up-card:hover { box-shadow: 0 0 0 1px var(--sc-amber); }
-.sc-up-card .sc-bar { width: 38px; height: 4px; min-width: 0; }
+.sc-up-card .sc-bar { width: 46px; height: 4px; min-width: 0; }
 .sc-up-card .sc-bar::after { display: none; }
 .sc-targeting { position: absolute; left: 50%; top: 72px; transform: translateX(-50%); z-index: 30; padding: 4px 14px; font-weight: 700; color: var(--sc-amber2); letter-spacing: .06em; }
 
@@ -704,3 +704,13 @@
 
 .sc-empty { padding: 16px; text-align: center; color: var(--sc-text3); font-style: italic; }
 .sc-cursor-target, .sc-cursor-target * { cursor: crosshair !important; }
+
+/* 3D design thumbnails (src/ui/thumbs.ts) */
+.sc-thumb { display: inline-flex; align-items: center; justify-content: center; flex: none; vertical-align: middle; overflow: hidden; border-radius: 2px;
+  background: radial-gradient(ellipse at 50% 38%, #3a4046 0%, #22262a 62%, #16191b 100%); box-shadow: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06); }
+.sc-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; animation: sc-thumb-in .25s ease-out; }
+.sc-thumb.pending { background: rgba(0,0,0,.25); }
+.sc-thumb.aff-hostile { box-shadow: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 -2px 0 #d8413a; }
+.sc-thumb.aff-ally { box-shadow: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 -2px 0 #4caf50; }
+.sc-thumb.aff-neutral { box-shadow: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 -2px 0 #c9b458; }
+@keyframes sc-thumb-in { from { opacity: 0; } to { opacity: 1; } }

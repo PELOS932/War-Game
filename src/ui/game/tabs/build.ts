@@ -3,6 +3,7 @@
  * construct facilities (pick a type, then place it on the map).
  */
 import { h, setText, setClass, clear, fmtMoney, fmtMillions, fmtNum, escapeHTML, setTip, KeyedList } from '../../dom';
+import { designThumbHTML } from '../../thumbs';
 import { icon, natoSymbol, resourceIcon, facilityIcon, RESOURCE_SHORT } from '../../icons';
 import { bar } from '../../widgets';
 import {
@@ -82,7 +83,7 @@ export function buildTab(ctx: Ctx): TabView {
         designList.appendChild(h('div', { class: 'sc-tier', style: 'margin:4px 6px 2px' }, CATEGORY_NAMES[d.category]));
       }
       const row = h('div', { class: 'sc-design' + (d.id === selDesign ? ' sel' : ''), style: ok ? '' : 'opacity:.5' },
-        h('span', { html: natoSymbol(d.category, 'friend', 30) }),
+        h('span', { html: designThumbHTML(d) }),
         h('div', { class: 'nm' }, d.real ? h('span', { style: 'margin-right:4px' }, originFlag(ctx, d.origin, 9)) : null, d.name, h('small', null, `${fmtMillions(d.cost)} · ${d.buildDays} days · ${d.personnel.toLocaleString('en-US')} men`)),
         h('span', { class: 'gen sc-tag ' + (ok ? 'amber' : '') }, ok ? (d.real ? String(d.year ?? '') : `GEN ${d.generation}`) : '🔒 ' + (ctx.state.techs.get(d.requiresTech ?? '')?.name ?? 'Locked')),
       );
