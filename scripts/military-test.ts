@@ -88,7 +88,10 @@ console.log(`${days} days simulated in ${(simMs / 1000).toFixed(1)} s (${(simMs 
 const me = code2id.get('POL') ?? 5;
 const meN = st.nations[me];
 meN.treasury = Math.max(meN.treasury, 500);
+t0 = Date.now();
 const market = game.armsMarket(me);
+const marketMs = Date.now() - t0;
+check(marketMs < 100, `armsMarket() took ${marketMs} ms`);
 console.log(`Arms market for ${meN.name}: ${market.length} offers from ${new Set(market.map((o) => o.seller)).size} sellers`);
 check(market.length > 0, 'market has offers');
 const cand = market.find((o) => st.designs.get(o.designId)!.cls === UnitClass.Land) ?? market[0];

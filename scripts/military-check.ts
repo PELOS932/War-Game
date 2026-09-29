@@ -31,7 +31,12 @@ const section = (title: string, items: string[]) => {
   problems += items.length;
 };
 section('duplicate design ids (first wins)', R.duplicateIds);
-section('invalid / clamped design fields', R.invalidDesigns);
+section('invalid design fields (repaired / dropped)', R.invalidDesigns);
+console.log(`\n-- numeric fields clamped to the sim range (informational): ${R.clamped.length}`);
+for (const c of R.clamped.slice(0, 12)) console.log('   ' + c);
+const rs = R.resolved.filter((x, i, a) => a.findIndex((y) => y.from === x.from && y.to === x.to) === i);
+console.log(`\n-- ids resolved by alias/prefix (${rs.length} distinct; ${R.genericRefs} direct generic refs)`);
+for (const c of rs.slice(0, 40)) console.log(`   ${c.nation}: ${c.from} -> ${c.to}`);
 section('inventory ids not defined (dropped; generic OOB fills the category)', R.missingInventoryIds.map((x) => `${x.nation}: ${x.id}`));
 section('produces ids not defined (dropped)', R.missingProduceIds.map((x) => `${x.nation}: ${x.id}`));
 section('predecessors not defined (ignored)', R.missingPredecessors.map((x) => `${x.id} <- ${x.predecessor}`));

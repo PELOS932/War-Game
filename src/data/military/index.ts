@@ -12,7 +12,8 @@ export type { MilitaryDesign, NationInventory } from './schema';
 export interface MilitaryReport {
   regions: { name: string; designs: number; inventories: number }[];
   duplicateIds: string[]; // ids defined more than once (first wins)
-  invalidDesigns: string[]; // human readable issues (fixed by clamping / dropped)
+  invalidDesigns: string[]; // human readable issues (dropped / repaired)
+  clamped: string[]; // numeric fields clamped into the simulation's range (informational)
   missingInventoryIds: { nation: string; id: string }[]; // dropped, generic OOB fills the category
   missingProduceIds: { nation: string; id: string }[];
   missingPredecessors: { id: string; predecessor: string }[];
@@ -25,7 +26,7 @@ export interface MilitaryReport {
 }
 
 const report: MilitaryReport = {
-  regions: [], duplicateIds: [], invalidDesigns: [], missingInventoryIds: [], missingProduceIds: [],
+  regions: [], duplicateIds: [], invalidDesigns: [], clamped: [], missingInventoryIds: [], missingProduceIds: [],
   missingPredecessors: [], resolved: [], genericRefs: 0, duplicateInventories: [], totals: { designs: 0, future: 0, nations: 0, units: 0 },
 };
 
@@ -52,12 +53,12 @@ function sanitize(d: MilitaryDesign): MilitaryDesign | null {
   const stat = (k: keyof MilitaryDesign, lo: number, hi: number, dflt: number) => {
     const v = out[k] as unknown;
     if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) {
-      if (v !== undefined) report.invalidDesigns.push(`${d.id}.${String(k)}=${String(v)} out of range [${lo},${hi}] (clamped)`);
+      if (v !== undefined) report.clamped.push(`${d.id}.${String(k)}=${String(v)} -> [${lo},${hi}]`);
       (out as unknown as Record<string, number>)[k as string] = clampNum(v, lo, hi, dflt);
     }
   };
   for (const k of ['attackSoft', 'attackHard', 'attackAir', 'attackNaval', 'attackSub', 'defenseGround', 'defenseAir', 'defenseNaval'] as const) stat(k, 0, 100, 0);
-  for (const k of ['rangeGround', 'rangeAir', 'rangeNaval'] as const) stat(k, 0, 12, 0);
+  for (const k of ['rangeGround', 'rangeAir', 'rangeNaval'] as const) stat(k, 0, 8, 0);
   stat('stealth', 0, 1, 0);
   stat('spotting', 0, 12, 2);
   stat('speedKmh', 1, 4000, 30);
@@ -78,15 +79,30 @@ function sanitize(d: MilitaryDesign): MilitaryDesign | null {
   return out;
 }
 
+const genericIds = new Set(UNIT_DESIGNS.map((d) => d.id));
+
 // ---- designs --------------------------------------------------------------------
 const designMap = new Map<string, MilitaryDesign>();
+const invCodes = new Map<string, Set<string>>();
+for (const r of REGIONS) invCodes.set(r.name, new Set(r.INVENTORY.map((i) => i.code)));
+const homeRegion = new Map<string, boolean>(); // id -> current definition comes from the origin's own region
 for (const r of REGIONS) {
   report.regions.push({ name: r.name, designs: r.DESIGNS.length, inventories: r.INVENTORY.length });
   for (const raw of r.DESIGNS) {
     const d = sanitize(raw);
     if (!d) continue;
-    if (designMap.has(d.id)) { report.duplicateIds.push(`${d.id} (${r.name})`); continue; }
+    const home = invCodes.get(r.name)!.has(d.origin);
+    if (designMap.has(d.id)) {
+      // Duplicate: prefer the definition from the origin nation's own region, else first wins.
+      if (home && !homeRegion.get(d.id)) {
+        report.duplicateIds.push(`${d.id} (${r.name} definition preferred: origin region)`);
+        designMap.set(d.id, d);
+        homeRegion.set(d.id, true);
+      } else report.duplicateIds.push(`${d.id} (${r.name} ignored)`);
+      continue;
+    }
     designMap.set(d.id, d);
+    homeRegion.set(d.id, home);
   }
 }
 for (const d of designMap.values()) {
@@ -98,7 +114,6 @@ for (const d of designMap.values()) {
 export const DESIGNS: MilitaryDesign[] = [...designMap.values()];
 
 // ---- id resolution -------------------------------------------------------------------
-const genericIds = new Set(UNIT_DESIGNS.map((d) => d.id));
 const resolveCache = new Map<string, string | null>();
 /** Real id, generic sim id, alias or unique prefix relative; null when unknown. */
 function resolveId(id: string, nation: string): string | null {
