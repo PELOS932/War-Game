@@ -378,7 +378,7 @@ vec3 applyOverlay(inout vec3 col, vec3 wp, float pix, bool water) {
   vec3 pc = owner > 0 ? texelFetch(uPalette, ivec2(owner, 0), 0).rgb : vec3(0.0);
   pc = pow(pc, vec3(2.2));
   if (uMapMode == 1 && owner > 0) {
-    float a = (water ? 0.34 : mix(0.0, 0.4, smoothstep(1.2, 70.0, uCamDist))) * uOverlayAlpha;
+    float a = (water ? 0.22 : mix(0.0, 0.4, smoothstep(1.2, 70.0, uCamDist))) * uOverlayAlpha;
     col = mix(col, pc * 0.9 + col * 0.25, a);
     // Occupied territory: diagonal hatching in the original owner's colour.
     if (core != owner && core > 0) {

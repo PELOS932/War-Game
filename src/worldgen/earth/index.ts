@@ -136,7 +136,7 @@ export function generateEarth(progress: Progress = () => {}): WorldData {
     for (let i = 0; i < nHex; i++) if (hexOwner[i] && isLand(i)) { dist[i] = 0; q.push(i); }
     for (let k = 0; k < q.length; k++) {
       const c = q[k];
-      if (dist[c] >= 3) continue;
+      if (dist[c] >= 1) continue;
       for (let d = 0; d < 6; d++) {
         const m = grid.neighbours[c * 6 + d];
         if (m < 0 || dist[m] >= 0 || isLand(m)) continue;
