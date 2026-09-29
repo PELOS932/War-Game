@@ -62,7 +62,6 @@ function axlesOf(d: UnitDesign): number | null {
   return n >= 2 && n <= 8 ? n : null;
 }
 
-const T = <K extends keyof Turret>(t: Turret, o: Pick<Partial<Turret>, K>): Turret => ({ ...t, ...o });
 function V(base: VehSpec, o: Partial<VehSpec> = {}, t?: Partial<Turret>): VehSpec {
   const r: VehSpec = { ...base, ...o };
   if (t && r.tur) r.tur = { ...r.tur, ...t };
@@ -1411,7 +1410,7 @@ export function varySpec(m: ModelSpec, r: Rng, a = 0.035): ModelSpec {
       const o: AirSpec = { ...m, r: r.v(m.r, a) };
       if (o.wing) o.wing = { ...o.wing, span: r.v(o.wing.span, a), sweep: r.v(o.wing.sweep, a), root: r.v(o.wing.root, a * 0.6) };
       if (o.vt) o.vt = { ...o.vt, h: r.v(o.vt.h, a) };
-      if (o.nose !== undefined || true) o.nose = r.v(m.nose ?? 0.22, a);
+      o.nose = r.v(m.nose ?? 0.22, a);
       return o;
     }
     case 'heli': return { ...m, r: r.v(m.r, a * 0.6), w: r.v(m.w, a), h: r.v(m.h, a), bl: r.v(m.bl ?? 0.62, a * 0.6) };

@@ -783,7 +783,6 @@ export interface AirSpec {
   ventral?: boolean;
   eng?: { n: number; k: 'int' | 'pod' | 'prop' | 'nac' | 'rear' | 'top' | 'pusher' | 'fan'; r: number; l: number; x: number; y?: number; z?: number[]; blades?: number };
   int?: 'chin' | 'side' | 'nose' | 'none' | 'dsi' | 'top' | 'box';
-  nzs?: number;
   boom?: { z: number; x0: number; x1: number };
   dark?: boolean;
   radome?: boolean;
@@ -910,12 +909,9 @@ export function aircraft(s: AirSpec): BuiltModel {
     const zs = e.z ?? [0];
     const ey = fy + (e.y ?? 0) * r;
     switch (e.k) {
-      case 'int': {
-        const nz = zs.length;
+      case 'int':
         for (const z of zs) k.add(cylC(e.r, e.r * 0.9, 0.05, 10), COL.DARK, { pos: [xt - 0.012, fy, z], rot: [0, 0, Math.PI / 2] });
-        void nz;
         break;
-      }
       case 'nac': {
         for (const z of zs) {
           const x0 = e.x, x1 = e.x - e.l;
@@ -997,10 +993,6 @@ export function aircraft(s: AirSpec): BuiltModel {
     for (const z of [b.z, -b.z]) k.tube([b.x0, fy, z], [b.x1, fy + 0.01, z], 0.012, 0.01, bodyC === COL.TINT ? COL.TINT2 : COL.TINT3, 6, 1);
   }
   if (s.probe) k.tube([xn - nose * 0.6, fy + r * sy * 0.5, r * 0.5], [xn + 0.05, fy + r * sy * 0.55, r * 0.5], 0.004, 0.004, COL.DARK, 4);
-  // Nozzles for internal engines.
-  if (s.eng?.k === 'int' && (s.eng.z?.length ?? 1) > 0) {
-    // already drawn
-  }
   return k.done();
 }
 
@@ -1452,7 +1444,6 @@ export function submarine(s: SubSpec): BuiltModel {
   const [sx, sl, sh0, st] = s.sail;
   const sh = sh0 * 1.35;
   const sy0 = cy + r * 0.8;
-  const shk = 1.35;
   const w = r * 0.42;
   if (st === 1) {
     const bot: P2[] = [[sx - sl * 0.7, 0], [sx - sl / 2, -w * 1.3], [sx + sl * 0.3, -w * 1.3], [sx + sl * 0.75, 0], [sx + sl * 0.3, w * 1.3], [sx - sl / 2, w * 1.3]];
