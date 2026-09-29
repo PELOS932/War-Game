@@ -354,10 +354,10 @@ export function kmPerUnitAt(z: number, s: WorldSettings): { ns: number; ew: numb
 export const EARTH_SETTINGS: WorldSettings = {
   kind: 'earth',
   seed: 2030,
-  cols: 720,
-  rows: 326,
+  cols: 1080,
+  rows: 489,
   latNorth: 84,
-  latSouth: 84 - (1.5 * 326 + 0.5) * (360 / (Math.sqrt(3) * 720.5)),
+  latSouth: 84 - (1.5 * 489 + 0.5) * (360 / (Math.sqrt(3) * 1080.5)),
   lonWest: -180,
   lonEast: 180,
   landFraction: 0,
