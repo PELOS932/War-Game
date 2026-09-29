@@ -10,8 +10,9 @@ import {
 } from '../../../sim/types';
 import type { Ctx } from '../context';
 import type { TabView } from '../panel';
+import { armsMarketView, designSheet, originFlag } from '../arms';
 
-type Sub = 'units' | 'facilities';
+type Sub = 'units' | 'facilities' | 'market';
 
 export function buildTab(ctx: Ctx): TabView {
   const { game } = ctx;
@@ -23,19 +24,25 @@ export function buildTab(ctx: Ctx): TabView {
   // ---------------------------------------------------------------- sub tabs
   const stUnits = h('div', { class: 'sc-subtab on' }, h('span', { html: icon('tank') }), 'Units');
   const stFac = h('div', { class: 'sc-subtab' }, h('span', { html: icon('factory') }), 'Facilities');
-  const subtabs = h('div', { class: 'sc-subtabs' }, stUnits, stFac);
+  const stMarket = h('div', { class: 'sc-subtab' }, h('span', { html: icon('handshake') }), 'Arms Market');
+  const subtabs = h('div', { class: 'sc-subtabs' }, stUnits, stFac, stMarket);
   const unitsPane = h('div');
   const facPane = h('div', { style: 'display:none' });
+  const market = armsMarketView(ctx);
+  const marketPane = h('div', { style: 'display:none' }, market.el);
   const setSub = (s: Sub) => {
     sub = s;
     setClass(stUnits, 'on', s === 'units');
     setClass(stFac, 'on', s === 'facilities');
+    setClass(stMarket, 'on', s === 'market');
     unitsPane.style.display = s === 'units' ? '' : 'none';
     facPane.style.display = s === 'facilities' ? '' : 'none';
+    marketPane.style.display = s === 'market' ? '' : 'none';
     update(true);
   };
   stUnits.addEventListener('click', () => setSub('units'));
   stFac.addEventListener('click', () => setSub('facilities'));
+  stMarket.addEventListener('click', () => setSub('market'));
 
   // ---------------------------------------------------------------- units
   const clsChips = h('div', { class: 'sc-chips', style: 'margin-bottom:4px' });
@@ -65,6 +72,7 @@ export function buildTab(ctx: Ctx): TabView {
     for (const d of all) {
       const ok = avail.has(d.id);
       if (!ok) {
+        if (d.real) continue; // foreign / future designs: buy on the Arms Market or research them
         // show locked designs only if the previous generation is available
         const prev = all.find((x) => x.category === d.category && x.generation === d.generation - 1);
         if (!prev || !avail.has(prev.id)) continue;
@@ -75,8 +83,8 @@ export function buildTab(ctx: Ctx): TabView {
       }
       const row = h('div', { class: 'sc-design' + (d.id === selDesign ? ' sel' : ''), style: ok ? '' : 'opacity:.5' },
         h('span', { html: natoSymbol(d.category, 'friend', 30) }),
-        h('div', { class: 'nm' }, d.name, h('small', null, `${fmtMillions(d.cost)} · ${d.buildDays} days · ${d.personnel.toLocaleString('en-US')} men`)),
-        h('span', { class: 'gen sc-tag ' + (ok ? 'amber' : '') }, ok ? `GEN ${d.generation}` : '🔒 ' + (ctx.state.techs.get(d.requiresTech ?? '')?.name ?? 'Locked')),
+        h('div', { class: 'nm' }, d.real ? h('span', { style: 'margin-right:4px' }, originFlag(ctx, d.origin, 9)) : null, d.name, h('small', null, `${fmtMillions(d.cost)} · ${d.buildDays} days · ${d.personnel.toLocaleString('en-US')} men`)),
+        h('span', { class: 'gen sc-tag ' + (ok ? 'amber' : '') }, ok ? (d.real ? String(d.year ?? '') : `GEN ${d.generation}`) : '🔒 ' + (ctx.state.techs.get(d.requiresTech ?? '')?.name ?? 'Locked')),
       );
       row.addEventListener('click', () => {
         selDesign = d.id;
@@ -141,30 +149,7 @@ export function buildTab(ctx: Ctx): TabView {
       return;
     }
     const avail = game.availableDesigns(ctx.player).includes(d.id);
-    const att = (label: string, v: number) => [h('span', null, label), h('div', { class: 'sc-bar red' }, h('i', { style: `width:${v}%` })), h('span', null, String(v))];
-    const def = (label: string, v: number) => [h('span', null, label), h('div', { class: 'sc-bar blue' }, h('i', { style: `width:${v}%` })), h('span', null, String(v))];
-    detail.append(
-      h('div', { class: 'sc-row', style: 'gap:8px;margin-bottom:4px' },
-        h('span', { html: natoSymbol(d.category, 'friend', 44) }),
-        h('div', { class: 'sc-grow' },
-          h('div', { style: 'font-weight:800;font-size:13px;color:#fff' }, d.name),
-          h('div', { class: 'sc-dim' }, `${CATEGORY_NAMES[d.category]} · Generation ${d.generation} · ${d.armor} armor · ${d.mobility}`),
-        ),
-      ),
-      h('div', { class: 'sc-dim', style: 'font-size:11px;margin-bottom:5px' }, d.description),
-      h('div', { class: 'sc-grid2', style: 'gap:10px' },
-        h('div', { class: 'sc-attbars' }, ...att('vs Soft', d.attackSoft), ...att('vs Hard', d.attackHard), ...att('vs Air', d.attackAir), ...att('vs Naval', d.attackNaval), ...att('vs Sub', d.attackSub)),
-        h('div', { class: 'sc-attbars' }, ...def('Def. Ground', d.defenseGround), ...def('Def. Air', d.defenseAir), ...def('Def. Naval', d.defenseNaval),
-          h('span', null, 'Stealth'), h('div', { class: 'sc-bar grey' }, h('i', { style: `width:${d.stealth * 100}%` })), h('span', null, (d.stealth * 100).toFixed(0))),
-      ),
-      h('div', { class: 'sc-statgrid', style: 'margin-top:6px' },
-        statCell('Speed', `${d.speedKmh} km/h`), statCell('Spotting', `${d.spotting} hex`), statCell('Personnel', fmtNum(d.personnel)),
-        statCell('Range gnd', d.rangeGround + (d.indirect ? ' (ind.)' : '')), statCell('Range air', d.rangeAir), statCell('Range naval', d.rangeNaval),
-        statCell('Radius', d.rangeKm ? `${d.rangeKm} km` : '—'), statCell('Fuel', `${d.fuelCapacity} h`), statCell('Capture', d.canCapture ? 'Yes' : 'No'),
-        statCell('Cost', fmtMillions(d.cost)), statCell('Mil. goods', fmtNum(d.militaryGoodsCost)), statCell('Build', `${d.buildDays} d`),
-        statCell('Upkeep', `${fmtMillions(d.upkeep)}/d`),
-      ),
-    );
+    detail.append(designSheet(ctx, d));
     if (avail) {
       fillCities(d);
       updateTotal();
@@ -258,10 +243,12 @@ export function buildTab(ctx: Ctx): TabView {
     };
   });
 
-  const el = h('div', null, subtabs, unitsPane, facPane);
+  const el = h('div', null, subtabs, unitsPane, facPane, marketPane);
   let designsSig = '';
   const update = (force: boolean) => {
-    if (sub === 'units') {
+    if (sub === 'market') {
+      market.update(force);
+    } else if (sub === 'units') {
       const sig = game.availableDesigns(ctx.player).join(',');
       if (force || sig !== designsSig) {
         if (designsSig === '' || sig !== designsSig) renderDesigns();
@@ -284,6 +271,7 @@ export function buildTab(ctx: Ctx): TabView {
     id: 'build', title: 'Build & Procurement', icon: 'hammer', tip: 'Order new units and construct facilities', el,
     show(arg) {
       const a = arg as { sub?: Sub; facility?: FacilityType; design?: string } | undefined;
+      if (a?.sub === 'market') market.update(true);
       if (a?.sub) setSub(a.sub);
       if (a?.facility !== undefined) {
         setSub('facilities');

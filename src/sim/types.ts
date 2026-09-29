@@ -170,6 +170,21 @@ export interface UnitDesign {
   indirect: boolean; // artillery-style fire without closing in
   canCapture: boolean;
   description: string;
+  // ---- real-world equipment (optional; absent on the generic designs) ----
+  /** true for designs from src/data/military (real or national-concept designs). */
+  real?: boolean;
+  /** ISO3 of the designing nation. */
+  origin?: string;
+  /** In-service year (future designs: expected year). */
+  year?: number;
+  /** Not in service in 2030: must be researched by the origin nation. */
+  future?: boolean;
+  /** Can be sold on the arms market. */
+  exportable?: boolean;
+  /** Whitelist of buyer ISO3 codes (undefined/empty = anyone not hostile to the origin). */
+  exportTo?: string[];
+  /** Earlier design this evolved from. */
+  predecessor?: string;
 }
 
 export type Stance = 'aggressive' | 'defensive' | 'hold' | 'passive';
@@ -415,6 +430,8 @@ export interface Nation {
   // Research
   researchPoints: number; // per day
   knownTechs: Set<string>;
+  /** Real-world designs this nation can produce (ids from src/data/military). */
+  ownDesigns?: Set<string>;
   researching: ResearchSlot[];
   // Military production
   productionQueue: ProductionItem[];
@@ -563,6 +580,8 @@ export interface TechDef {
   /** Free-form effect keys interpreted by the simulation, e.g. { landAttack: 0.05 }. */
   effects: Record<string, number>;
   unlocksDesigns: string[];
+  /** Restricts the tech to these nations (ISO3) and their research-sharing partners. */
+  nations?: string[];
 }
 
 // ---------------------------------------------------------------------------

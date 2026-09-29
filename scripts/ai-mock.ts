@@ -227,6 +227,11 @@ const mock: GameAPI = {
   sendAid: () => OK, improveRelations: () => OK, respondProposal: () => OK,
   setDefcon(n, l) { nations[n].defcon = l; return OK; },
   setAutonomy: () => OK,
+  armsMarket: () => [],
+  buyArms: () => ({ ok: false, reason: 'mock' }),
+  sellUnits: () => ({ ok: false, reason: 'mock' }),
+  unitsValue: () => 0,
+  licenseDesign: () => ({ ok: false, reason: 'mock' }),
 };
 const ai = createAI(mock);
 

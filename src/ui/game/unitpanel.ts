@@ -7,6 +7,7 @@ import { icon, natoSymbol, IconName } from '../icons';
 import { flagImg, bar, Bar } from '../widgets';
 import { confirm } from '../dialogs';
 import { CATEGORY_NAMES, UnitClass, type Stance, type Unit } from '../../sim/types';
+import { openSellDialog } from './arms';
 import { affiliation, designOf, hexPlace, orderText, type Ctx, type TargetMode } from './context';
 
 export interface UnitPanel {
@@ -143,6 +144,9 @@ export function createUnitPanel(ctx: Ctx): UnitPanel {
         const u = ctx.state.units.get(ctx.selection[0]);
         if (u) ctx.renderer.focusOn(u.x, u.z);
       }, 'C'),
+      btn('handshake', 'Sell units — transfer the selected units to another nation for a price (instant delivery)', () => {
+        if (ctx.selection.length) openSellDialog(ctx, ctx.selection);
+      }),
       btn('disband', 'Disband — permanently disband the selected units', () => {
         const n = ctx.selection.length;
         if (!n) return;

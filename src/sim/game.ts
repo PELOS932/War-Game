@@ -11,6 +11,7 @@ import { MarketBook, manualTrade } from './market';
 import { economyDay, issueBonds, repayDebt } from './economy';
 import { constructionDay, buildFacility, upgradeFacility, canBuildFacility } from './construction';
 import { productionDay, queueUnit, cancelProduction, availableDesigns, canBuildUnitAt } from './production';
+import { armsMarket, buyArms, sellUnits, unitsValue, licenseDesign, type ArmsOffer } from './arms';
 import { researchDay, canResearch, availableTechs } from './research';
 import * as dip from './diplomacy';
 import { PathSearch, profileFor } from './military/pathing';
@@ -357,6 +358,32 @@ export class Game implements GameAPI {
     const n = this.state.nations[nation];
     n.researching = n.researching.filter((r) => r.techId !== techId);
     return OK;
+  }
+
+  // ----- arms trade -----------------------------------------------------------------
+  armsMarket(buyer: NationId): ArmsOffer[] {
+    return armsMarket(this.sim, buyer);
+  }
+
+  buyArms(buyer: NationId, seller: NationId, designId: string, count: number): CommandResult {
+    const r = buyArms(this.sim, this.namer, buyer, seller, designId, count);
+    if (r.ok) this.vis.refreshAll();
+    return r.ok ? OK : fail(r.reason ?? 'Purchase failed');
+  }
+
+  sellUnits(seller: NationId, buyer: NationId, unitIds: number[], priceBillions: number): CommandResult {
+    const r = sellUnits(this.sim, this.namer, seller, buyer, unitIds, priceBillions);
+    if (r.ok) this.vis.refreshAll();
+    return r.ok ? OK : fail(r.reason ?? 'Sale failed');
+  }
+
+  unitsValue(unitIds: number[]): number {
+    return unitsValue(this.sim, unitIds);
+  }
+
+  licenseDesign(buyer: NationId, seller: NationId, designId: string): CommandResult {
+    const r = licenseDesign(this.sim, buyer, seller, designId);
+    return r.ok ? OK : fail(r.reason ?? 'Licence refused');
   }
 
   // ----- diplomacy ------------------------------------------------------------------

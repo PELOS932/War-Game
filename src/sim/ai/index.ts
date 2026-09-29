@@ -20,6 +20,7 @@ import { AIContext, type AIGlobalLogEntry } from './context';
 import { remember, type NationMemory } from './memory';
 import { runEconomy, runFinance, runTrade } from './economy';
 import { runResearch } from './research';
+import { runArms } from './arms';
 import { assessThreats, runDefcon, runDefenseBudget, runProduction, updatePosture } from './defense';
 import { runForeign, runForeignDaily } from './foreign';
 import { commandPeriod, runMilitary } from './military/command';
@@ -177,6 +178,7 @@ class AIRuntime {
       });
     }
     if (ctx.controls(i, 'production')) step('production', () => runProduction(ctx, i, mem));
+    if (ctx.controls(i, 'production') && (Math.floor(ctx.state.hour / 24) + i) % 7 === 0) step('arms', () => runArms(ctx, i, mem));
     if (ctx.controls(i, 'economy')) {
       step('finance', () => runFinance(ctx, i, mem));
       step('economy', () => runEconomy(ctx, i, mem));

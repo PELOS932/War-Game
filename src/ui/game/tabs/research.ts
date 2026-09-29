@@ -6,9 +6,11 @@ import { icon, IconName, natoSymbol } from '../../icons';
 import { bar, slider } from '../../widgets';
 import type { ResearchSlot, TechCategory, TechDef } from '../../../sim/types';
 import type { Ctx } from '../context';
+import { designSheet } from '../arms';
 import type { TabView } from '../panel';
 
-const CATS: { id: TechCategory; name: string; icon: IconName }[] = [
+type Cat = TechCategory | 'national';
+const CATS: { id: Cat; name: string; icon: IconName }[] = [
   { id: 'economy', name: 'Economy', icon: 'chart' },
   { id: 'industry', name: 'Industry', icon: 'factory' },
   { id: 'energy', name: 'Energy', icon: 'sun' },
@@ -19,6 +21,7 @@ const CATS: { id: TechCategory; name: string; icon: IconName }[] = [
   { id: 'naval', name: 'Naval Warfare', icon: 'anchor' },
   { id: 'missiles', name: 'Missiles', icon: 'target' },
   { id: 'cyber', name: 'Cyber & C4I', icon: 'cpu' },
+  { id: 'national', name: 'National Designs', icon: 'star' },
 ];
 
 function fmtEffect(k: string, v: number): string {
@@ -29,7 +32,7 @@ function fmtEffect(k: string, v: number): string {
 
 export function researchTab(ctx: Ctx): TabView {
   const { game } = ctx;
-  let cat: TechCategory = 'economy';
+  let cat: Cat = 'economy';
   let selTech: string | null = null;
 
   const rpLbl = h('b');
@@ -57,7 +60,7 @@ export function researchTab(ctx: Ctx): TabView {
       if ((e.target as HTMLElement).closest('button')) return;
       const t = ctx.state.techs.get(tid);
       if (t) {
-        cat = t.category;
+        cat = catOf(t);
         selTech = tid;
         renderTree(true);
       }
@@ -79,7 +82,7 @@ export function researchTab(ctx: Ctx): TabView {
   });
 
   const catChips = h('div', { class: 'sc-chips', style: 'margin:4px 0 6px' });
-  const catEls = new Map<TechCategory, HTMLElement>();
+  const catEls = new Map<Cat, HTMLElement>();
   for (const c of CATS) {
     const e = h('span', { class: 'sc-chip' + (c.id === cat ? ' on' : '') }, h('span', { html: icon(c.icon) }), c.name);
     e.addEventListener('click', () => {
@@ -113,11 +116,20 @@ export function researchTab(ctx: Ctx): TabView {
     let d = 0;
     for (const p of t.prereqs) {
       const pt = techs.get(p);
-      if (pt && pt.category === t.category) d = Math.max(d, tierOf(pt, techs, memo) + 1);
+      if (pt && catOf(pt) === catOf(t)) d = Math.max(d, tierOf(pt, techs, memo) + 1);
     }
     memo.set(t.id, d);
     return d;
   };
+
+  /** National design programmes are visible only to the origin nation and its research-sharing partners. */
+  const visibleTech = (t: TechDef): boolean => {
+    if (!t.nations) return true;
+    if (t.nations.includes(ctx.me.code)) return true;
+    for (const o of ctx.state.nations) if (o.alive && t.nations.includes(o.code) && game.hasTreaty(ctx.player, o.id, 'researchSharing')) return true;
+    return false;
+  };
+  const catOf = (t: TechDef): Cat => (t.nations ? 'national' : t.category);
 
   let treeSig = '';
   const renderTree = (force: boolean) => {
@@ -125,7 +137,7 @@ export function researchTab(ctx: Ctx): TabView {
     const techs = ctx.state.techs;
     const active = new Set(n.researching.map((s) => s.techId));
     const avail = new Set(game.availableTechs(ctx.player));
-    const list = [...techs.values()].filter((t) => t.category === cat);
+    const list = [...techs.values()].filter((t) => catOf(t) === cat && visibleTech(t));
     const sig = cat + '|' + selTech + '|' + list.map((t) => (n.knownTechs.has(t.id) ? 'k' : active.has(t.id) ? 'a' : avail.has(t.id) ? 'v' : 'l')).join('');
     if (!force && sig === treeSig) return;
     treeSig = sig;
@@ -189,7 +201,7 @@ export function researchTab(ctx: Ctx): TabView {
       const row = h('span', { class: ok ? 'pos' : 'neg', style: 'cursor:pointer' }, h('span', { html: icon(ok ? 'check' : 'close') }), ' ', pt?.name ?? p);
       row.addEventListener('click', () => {
         if (pt) {
-          cat = pt.category;
+          cat = catOf(pt);
           selTech = pt.id;
           renderTree(true);
         }
@@ -199,7 +211,8 @@ export function researchTab(ctx: Ctx): TabView {
     const unlocks = h('div', { class: 'sc-col', style: 'gap:2px' });
     for (const id of t.unlocksDesigns.slice(0, 8)) {
       const d = ctx.state.designs.get(id);
-      if (d) unlocks.appendChild(h('div', { class: 'sc-row', style: 'gap:5px' }, h('span', { html: natoSymbol(d.category, 'friend', 20) }), d.name));
+      if (d && d.real) unlocks.appendChild(designSheet(ctx, d));
+      else if (d) unlocks.appendChild(h('div', { class: 'sc-row', style: 'gap:5px' }, h('span', { html: natoSymbol(d.category, 'friend', 20) }), d.name));
     }
     if (t.unlocksDesigns.length > 8) unlocks.appendChild(h('span', { class: 'sc-dim' }, `+${t.unlocksDesigns.length - 8} more designs`));
     const action = known
@@ -231,7 +244,7 @@ export function researchTab(ctx: Ctx): TabView {
       const a = arg as { tech?: string } | undefined;
       if (a?.tech) {
         const t = ctx.state.techs.get(a.tech);
-        if (t) { cat = t.category; selTech = t.id; }
+        if (t) { cat = catOf(t); selTech = t.id; }
       }
       treeSig = '';
     },

@@ -769,6 +769,11 @@ export function createMockGame(world: WorldData, playerNation: number): GameAPI 
     },
     setDefcon(nation, level) { nations[nation].defcon = Math.max(1, Math.min(5, level)); return ok; },
     setAutonomy(nation, dept: Department, ai) { nations[nation].autonomy[dept] = ai; return ok; },
+    armsMarket: () => [],
+    buyArms: () => ({ ok: false, reason: 'mock' }),
+    sellUnits: () => ({ ok: false, reason: 'mock' }),
+    unitsValue: () => 0,
+    licenseDesign: () => ({ ok: false, reason: 'mock' }),
   };
   return api;
 }

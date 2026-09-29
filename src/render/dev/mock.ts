@@ -408,6 +408,11 @@ export class MockGame implements GameAPI {
   respondProposal(): CommandResult { return this.ok(); }
   setDefcon(): CommandResult { return this.ok(); }
   setAutonomy(): CommandResult { return this.ok(); }
+  armsMarket(): never[] { return []; }
+  buyArms(): CommandResult { return { ok: false, reason: 'mock' }; }
+  sellUnits(): CommandResult { return { ok: false, reason: 'mock' }; }
+  unitsValue(): number { return 0; }
+  licenseDesign(): CommandResult { return { ok: false, reason: 'mock' }; }
 
   /** Debug: fire a burst of combat events around a point. */
   burst(x: number, z: number, n = 6): void {

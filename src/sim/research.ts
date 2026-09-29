@@ -6,6 +6,7 @@
 import type { Nation, NationId, TechDef } from './types';
 import type { Sim } from './core';
 import { labLevels } from './economy';
+import { ownedDesigns } from './designs';
 
 export const MAX_RESEARCH_SLOTS = 3;
 
@@ -44,9 +45,19 @@ export function techCost(sim: Sim, n: Nation, t: TechDef): number {
   return t.cost * (1 - diffusion) * (partner ? 0.7 : 1);
 }
 
+/** National design programmes: origin nation or its research-sharing partners only. */
+export function techEligible(sim: Sim, n: Nation, t: TechDef): boolean {
+  if (!t.nations || t.nations.includes(n.code)) return true;
+  for (const o of sim.state.nations) {
+    if (o.alive && o.id !== n.id && t.nations.includes(o.code) && sim.hasTreaty(n.id, o.id, 'researchSharing')) return true;
+  }
+  return false;
+}
+
 export function canResearch(sim: Sim, n: Nation, id: string): string | null {
   const t = sim.state.techs.get(id);
   if (!t) return 'Unknown technology';
+  if (!techEligible(sim, n, t)) return `National programme of ${t.nations!.join('/')} (needs a research-sharing treaty)`;
   if (n.knownTechs.has(id)) return 'Already researched';
   if (n.researching.some((s) => s.techId === id)) return 'Already being researched';
   for (const p of t.prereqs) if (!n.knownTechs.has(p)) return `Requires ${sim.state.techs.get(p)?.name ?? p}`;
@@ -57,6 +68,7 @@ export function availableTechs(sim: Sim, n: Nation): string[] {
   const out: string[] = [];
   for (const t of sim.state.techs.values()) {
     if (n.knownTechs.has(t.id)) continue;
+    if (t.nations && !techEligible(sim, n, t)) continue;
     if (t.prereqs.every((p) => n.knownTechs.has(p))) out.push(t.id);
   }
   return out;
@@ -65,6 +77,8 @@ export function availableTechs(sim: Sim, n: Nation): string[] {
 export function grantTech(sim: Sim, n: Nation, id: string): void {
   n.knownTechs.add(id);
   n.techMods = computeTechMods(sim.state.techs, n.knownTechs);
+  const t = sim.state.techs.get(id);
+  if (t) for (const did of t.unlocksDesigns) if (sim.state.designs.get(did)?.real) ownedDesigns(n).add(did);
 }
 
 export function researchDay(sim: Sim): void {

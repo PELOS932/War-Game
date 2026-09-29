@@ -20,6 +20,8 @@ import {
 import { UNIT_DESIGNS, designId } from './data/units';
 import { FACILITY_DEFS, airbaseCapacity } from './data/facilities';
 import { TECHS, initialTechs } from './data/techs';
+import { futureDesignTechs, realUnitDesigns } from './data/realdesigns';
+import { inventoryOf } from '../data/military/index';
 import {
   AGRI_EXPORT, AMPHIBS, ARMS_INDUSTRY, CARRIERS, CRUISERS, HEAVY_INDUSTRY, HYDRO_POWER, MANUFACTURING,
   NUCLEAR_POWER, RENEWABLE_POWER, SHIP_PREFIX, SUBMARINES, realStats,
@@ -86,7 +88,9 @@ export function buildScenario(world: WorldData, playerNation: NationId, seed: nu
 
   // ---- designs / techs / defs ---------------------------------------------------
   const designs = new Map<string, UnitDesign>(UNIT_DESIGNS.map((d) => [d.id, d]));
+  for (const d of realUnitDesigns()) if (!designs.has(d.id)) designs.set(d.id, d);
   const techs = new Map(TECHS.map((t) => [t.id, t]));
+  for (const t of futureDesignTechs()) techs.set(t.id, t);
 
   // ---- nations -------------------------------------------------------------------
   const nations: Nation[] = prep.map((p) => makeNation(p, world, techs, names, rng, playerNation));
@@ -122,7 +126,11 @@ export function buildScenario(world: WorldData, playerNation: NationId, seed: nu
   for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) state.relations[a * N + b] = a === b ? 100 : world.relations[a * N + b] ?? 0;
 
   // ---- order of battle (composition) ------------------------------------------------
-  for (const n of nations) prep[n.id].plan = planForces(n, prep[n.id], designs, techs, rng);
+  for (const n of nations) {
+    const inv = inventoryOf(n.code);
+    n.ownDesigns = new Set(inv ? inv.produces.filter((id) => designs.has(id) && !designs.get(id)!.future) : []);
+    prep[n.id].plan = planForces(n, prep[n.id], designs, techs, rng);
+  }
 
   // ---- economy capacity plan & facilities --------------------------------------------
   planCapacity(state, prep, world, grid);
@@ -265,6 +273,43 @@ function bestGen(n: Nation, cat: UnitCategory, designs: Map<string, UnitDesign>)
 }
 
 function planForces(n: Nation, p: NationPrep, designs: Map<string, UnitDesign>, _techs: unknown, rng: RNG): PlannedUnit[] {
+  const generic = planGenericForces(n, p, designs, rng);
+  return applyInventory(n, generic, designs, rng);
+}
+
+/**
+ * Real order of battle: replaces the generic plan of each unit class with the
+ * nation's national inventory (scaled down proportionally so the world stays
+ * playable). Categories the inventory does not cover keep their generic units.
+ */
+function applyInventory(n: Nation, generic: PlannedUnit[], designs: Map<string, UnitDesign>, rng: RNG): PlannedUnit[] {
+  const inv = inventoryOf(n.code);
+  if (!inv || !inv.units.length || !generic.length) return generic;
+  const out: PlannedUnit[] = [];
+  for (const cls of [UnitClass.Land, UnitClass.Air, UnitClass.Naval]) {
+    const gen = generic.filter((u) => CATEGORY_CLASS[u.cat] === cls);
+    const real = inv.units.filter((u) => {
+      const d = designs.get(u.id);
+      return d && !d.future && d.cls === cls;
+    });
+    const S = real.reduce((a, u) => a + u.count, 0);
+    if (!gen.length || S <= 0) { out.push(...gen); continue; }
+    const cats = new Set(real.map((u) => designs.get(u.id)!.category));
+    const fill = gen.filter((u) => !cats.has(u.cat));
+    const budget = Math.max(gen.length - fill.length, Math.ceil(gen.length * 0.5), 1);
+    const k = Math.min(1, budget / S);
+    for (const u of real) {
+      const d = designs.get(u.id)!;
+      const x = u.count * k;
+      const c = Math.floor(x) + (rng.next() < x - Math.floor(x) ? 1 : 0);
+      for (let i = 0; i < c; i++) out.push({ design: u.id, cat: d.category });
+    }
+    out.push(...fill);
+  }
+  return out;
+}
+
+function planGenericForces(n: Nation, p: NationPrep, designs: Map<string, UnitDesign>, rng: RNG): PlannedUnit[] {
   const ex = n as NationExtra;
   const active = ex._active ?? 0;
   const navy = ex._navy ?? 0;
@@ -886,8 +931,9 @@ function placeForces(state: GameState, n: Nation, p: NationPrep, hostile: (a: Na
   // Carrier air wings (two strike-fighter squadrons each).
   for (const cv of carriers) {
     const g = bestGen(n, C.Multirole, designs);
+    const realWing = p.plan.filter((x) => x.cat === C.Multirole && designs.get(x.design)?.real).sort((a, b) => (designs.get(b.design)!.year ?? 0) - (designs.get(a.design)!.year ?? 0))[0];
     for (let k = 0; k < 2; k++) {
-      const u = mkUnit({ design: designId(C.Multirole, g), cat: C.Multirole }, cv.hex);
+      const u = mkUnit({ design: realWing ? realWing.design : designId(C.Multirole, g), cat: C.Multirole }, cv.hex);
       u.baseHex = cv.hex;
       u.carrier = cv.id;
       u.name = `${u.name.replace('Strike Fighter Squadron', 'Carrier Air Wing Squadron')}`;

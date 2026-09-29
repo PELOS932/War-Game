@@ -6,6 +6,7 @@
  * Implemented by `Game` in src/sim/game.ts (simulation agent):
  *   export function createGame(world: WorldData, playerNation: NationId): GameAPI
  */
+import type { ArmsOffer } from './arms';
 import type {
   Department, FacilityType, GameEvent, GameState, NationId, Resource, Spending, Stance,
   Taxes, TradePolicy, TreatyType, Unit,
@@ -92,6 +93,18 @@ export interface GameAPI {
   improveRelations(from: NationId, to: NationId): CommandResult;
   respondProposal(proposalId: number, accept: boolean): CommandResult;
   setDefcon(nation: NationId, level: number): CommandResult;
+
+  // ----- arms trade (instant delivery) -------------------------------------------
+  /** Everything `buyer` may purchase right now (other nations' exportable designs, non-hostile sellers). */
+  armsMarket(buyer: NationId): ArmsOffer[];
+  /** Pay the seller now; `count` new full-strength units appear instantly at the buyer's capital / airbase / port. */
+  buyArms(buyer: NationId, seller: NationId, designId: string, count: number): CommandResult;
+  /** Transfer existing units (a carrier takes its air wing) to another nation for a price in $B (0 = gift); instant. */
+  sellUnits(seller: NationId, buyer: NationId, unitIds: number[], priceBillions: number): CommandResult;
+  /** Fair market value in $B of a set of units (for pricing sales). */
+  unitsValue(unitIds: number[]): number;
+  /** Buy the right to produce a design domestically. */
+  licenseDesign(buyer: NationId, seller: NationId, designId: string): CommandResult;
 
   // ----- government -----------------------------------------------------------------
   setAutonomy(nation: NationId, dept: Department, aiControlled: boolean): CommandResult;

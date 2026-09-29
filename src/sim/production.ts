@@ -7,18 +7,17 @@ import { FacilityType, UnitClass, type Nation, type NationId, type UnitDesign } 
 import type { Sim } from './core';
 import { UnitNamer, adjacentWaterHex } from './scenario';
 import { spawnUnit } from './military/units';
+import { buildable, isBuildable } from './designs';
 import { validBase, carrierAt } from './military/air';
 
 export interface Result { ok: boolean; reason?: string }
 
-export function designAvailable(n: Nation, d: UnitDesign): boolean {
-  return !d.requiresTech || n.knownTechs.has(d.requiresTech);
+export function designAvailable(sim: Sim, n: Nation, d: UnitDesign): boolean {
+  return isBuildable(sim.state, n, d);
 }
 
 export function availableDesigns(sim: Sim, n: Nation): string[] {
-  const out: string[] = [];
-  for (const d of sim.state.designs.values()) if (designAvailable(n, d)) out.push(d.id);
-  return out;
+  return buildable(sim.state, n).list;
 }
 
 /** Unit price in billions for this nation. */
@@ -65,7 +64,10 @@ export function canBuildUnitAt(sim: Sim, nation: NationId, designId: string, cit
   const d = sim.state.designs.get(designId);
   if (!n?.alive) return { ok: false, reason: 'Invalid nation' };
   if (!d) return { ok: false, reason: 'Unknown design' };
-  if (!designAvailable(n, d)) return { ok: false, reason: `Requires ${sim.state.techs.get(d.requiresTech!)?.name ?? d.requiresTech}` };
+  if (!designAvailable(sim, n, d)) {
+    if (d.real) return { ok: false, reason: d.future ? `Requires research: ${sim.state.techs.get('design:' + d.id)?.name ?? d.name}` : `${d.name} is not in ${n.name}'s production lines (buy it on the Arms Market)` };
+    return { ok: false, reason: `Requires ${sim.state.techs.get(d.requiresTech!)?.name ?? d.requiresTech}` };
+  }
   const c = sim.state.cities[cityId];
   if (!c || sim.owner(c.hex) !== nation) return { ok: false, reason: 'City not controlled' };
   if (spawnHex(sim, nation, d, cityId) < 0) {
