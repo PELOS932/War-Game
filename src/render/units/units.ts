@@ -1,3 +1,5 @@
+/** Fixed size of unit models in world units (a hex is ~1.7 units across). */
+const UNIT_MODEL_SIZE = 0.5;
 import * as THREE from 'three';
 import type { GameAPI } from '../../sim/api';
 import { CATEGORY_CLASS, SPEED_HOURS_PER_SECOND, UnitCategory, UnitClass, type Unit } from '../../sim/types';
@@ -422,7 +424,7 @@ export class Units {
     const d = cam.dist;
     this.camD = d;
     // Model size grows with distance so units never become sub-pixel.
-    const s = clamp(0.058 * d, 0.024, 3.2);
+    const s = UNIT_MODEL_SIZE; // fixed world size: models don't resize with zoom
     this.size = s;
     this.glow.value = 0.12 + 0.3 * smoothstep(4, 60, d);
     const hps = SPEED_HOURS_PER_SECOND[st.speed] ?? 1;
